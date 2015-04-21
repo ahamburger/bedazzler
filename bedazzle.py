@@ -36,10 +36,16 @@ def placeGem(baseObj,gem):
 	gem_rows = [x for x in range(int(100*(bounds[1][1]-bounds[1][0])/.05)/100)]	#say gems are .05*.05 in uv space
 	gem_cols = [x for x in range(int(100*(bounds[0][1]-bounds[0][0])/.05)/100)]
 
+	to_place = getGemsToPlace(gem_rows, gem_cols)
+
+def getGemsToPlace(rows, cols):
 	#get UV points
 	cmds.select(cmds.polyListComponentConversion('pCube1.vtx[*]',tuv = True))
 	uvs = cmds.polyEditUV( query=True )
 
+	uvs_to_check = makeConvexIshHull(uvs)
+
+def makeConvexIshHull(uvs)
 	angles = []
 	anchor = (0,0)
 	#select anchor point (max y value). should add a check here that uvs are loaded properly
@@ -62,6 +68,8 @@ def placeGem(baseObj,gem):
 	#sort by angle 
 	sorted_angles = sorted(angles, key = lambda x: x[1])
 	print sorted_angles
+
+
 
 def getAngle(anchor, pt):
 	vecX = (pt[0]-anchor[0])/ math.sqrt( (anchor[0] - pt[0])**2 + (anchor[1] - pt[1])**2 )
