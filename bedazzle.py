@@ -1,11 +1,11 @@
 import maya.cmds as cmds
 import maya.OpenMaya as OM
+import math
 
-
-def bedazzle():
+def run():
 	base = pickBaseObject()
-	makeGem()
-	placeGem()
+	g = makeGem()
+	placeGem(base, g)
 
 #return first object in the scene (for now) except for gemstones
 def pickBaseObject():
@@ -14,7 +14,7 @@ def pickBaseObject():
 		print("No objects in scene")
 		return
 	for o in objects:
-		if not o.contains("gem"):
+		if "gem" not in o:
 			return o
 
 
@@ -26,7 +26,47 @@ def makeGem():
 	cmds.polyMoveEdge( 'gem.e[1:2]', t=(0, -.5, 0) )
 
 #place gem on a 
-def placeGem():
+def placeGem(baseObj,gem):
+	
+	cmds.select('pCube1')
+
+	# get UV bounding box
+	bounds = cmds.polyEvaluate(b2 = True)
+	print bounds
+	gem_rows = [x for x in range(int(100*(bounds[1][1]-bounds[1][0])/.05)/100)]	#say gems are .05*.05 in uv space
+	gem_cols = [x for x in range(int(100*(bounds[0][1]-bounds[0][0])/.05)/100)]
+
+	#get UV points
+	cmds.select(cmds.polyListComponentConversion('pCube1.vtx[*]',tuv = True))
+	uvs = cmds.polyEditUV( query=True )
+
+	angles = []
+	anchor = (0,0)
+	#select anchor point (max y value). should add a check here that uvs are loaded properly
+	for u in range(1, len(uvs), 2):
+		if uvs[u] == bounds[1][1]:
+			anchor = (uvs[u-1], uvs[u])
+			angles.append((u-1, 0))
+			break
+
+	print anchor
+
+	#build list of tuples where x[0] = index in uv list, x[1] = angle with anchor
+	for i in range(1, len(uvs)-1, 2):
+		if i == u-1:	#anchor index
+			continue
+		pt = (uvs[i], uvs[i+1])
+		angle_with_anchor = getAngle(anchor, pt)
+		angles.append((i, angle_with_anchor))
+
+	#sort by angle 
+	sorted_angles = sorted(angles, key = lambda x: x[1])
+	print sorted_angles
+
+def getAngle(anchor, pt):
+	vecX = (pt[0]-anchor[0])/ math.sqrt( (anchor[0] - pt[0])**2 + (anchor[1] - pt[1])**2 )
+	#take dot prod with (1,0), which is just the x component.
+	return math.acos(vecX)
 
 
 """
