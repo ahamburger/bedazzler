@@ -27,38 +27,60 @@ def makeGem():
 
 #place gem on a 
 def findSpots(baseObj,gem):
-	
 	cmds.select('pCube1')
 	centers = []
+	normals = []
 	for face_i in range(cmds.polyEvaluate('pCube1', f=True)):
 		face = cmds.select('pCube1.f['+ str(face_i)+']')
 
 		normal = cmds.polyInfo(fn=True)
-		verts = cmds.polyListComponentConversion(tv = True)
-
+		verts2 = cmds.polyListComponentConversion(tv = True)
+		cmds.select(verts2)
+		verts= cmds.filterExpand( ex=True, sm=31 )
+		# print(verts)
 		positions = []
 
-		for vert_i in range(cmds.polyEvaluate(verts, v=True)):
-			cmds.select('pCube1.vtx['+ str(vert_i)+']')
+		for vert_i in verts:#range(cmds.polyEvaluate(verts, v=True)):
+			cmds.select(vert_i)#'pCube1.vtx['+ str(vert_i)+']')
 			positions.append(cmds.xform(query=True, translation=True, worldSpace=True))
 		
 		avg=[0,0,0]
+
 		for p in positions:
 			avg[0] += p[0]/4
 			avg[1] += p[1]/4
 			avg[2] += p[2]/4
-		centers.append(avg)
 
-		for c in centers:		
-			placeGem(c,normal,gem)
+		normal_f = [float(i) for i in normal[0].split(':')[1].split()]
+		
+		placeGem(avg, normal_f,gem)
+
+	# for c in range(len(centers)-1):	
+	# 	print c
+	# 	print centers[c]
+	# 	print normals[c]	
+	# 	placeGem(centers[c],normal[c],gem)
+
+	cmds.delete('gem')
 
 def placeGem(pt, norm, gem):
 	cmds.select('gem')
 	cmds.duplicate()
-	# cmds.rotate(norm)
-	cmds.move(pt[0], pt[1],pt[2])
 
+	r_angle = getRotAngle(norm)
+	print r_angle
+	cmds.rotate(r_angle[0],r_angle[1],r_angle[2])	
+	cmds.move(pt[0], pt[1], pt[2])
 
+def getRotAngle(n):
+	ret = []
+
+	magnitude = math.sqrt(sum(n[i]* n[i] for i in range(len(n))))
+	for val in n:
+		new_val = math.acos(val/magnitude) * 180 / math.pi
+		ret.append(new_val)
+
+	return ret
 #not using this probably:
 # script that returns the center point of selected polygon faces. 
 # owen burgess 2009
@@ -99,8 +121,6 @@ def faceCenter():
 
 	return faceCenter
 
-#made this a function ~*~very temporarily~*~ so I can collapse notes in sublime
-def notes():
 	"""
 	THE NEW PLAN:
 	Iterate over faces
