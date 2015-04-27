@@ -69,13 +69,14 @@ def placeGem(pt, norm, gem):
 
 	r_angle = getRotAngle(norm)
 	print r_angle
-	cmds.rotate(r_angle[0],r_angle[1],r_angle[2])	
+	cmds.rotate(r_angle[0],r_angle[1],r_angle[2])
 	cmds.move(pt[0], pt[1], pt[2])
 
 def getRotAngle(n):
 	ret = []
 
 	magnitude = math.sqrt(sum(n[i]* n[i] for i in range(len(n))))
+	print magnitude
 	for val in n:
 		new_val = math.acos(val/magnitude) * 180 / math.pi
 		ret.append(new_val)
