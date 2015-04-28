@@ -63,6 +63,8 @@ def findPoints(baseObj,gem):
 		curr_pt = avg
 		#finding vector perpendicular to normal that lies in the plane between the normal and y axis (0,1,0)
 		#this can be simplified if it works
+
+		#unless normal is already the y axis, then use the z axis as "up"
 		if normal_f == [0.0,1.0,0.0] or normal_f == [0.0,-1.0,0.0]:
 			up = [-1*normal_f[2]*normal_f[i] for i in range(0,3)]
 			up[2] = 1 - up[2]
@@ -161,15 +163,6 @@ def checkPt(pt, bounds, verts):
 		return True
 	return False
 
-"""
-	need to find "axis" vectors that lie in the plane, 
-	from center, spiral around until have hit xmax, ymax, ymin, xmin, zmin, zmax
-		check that still lies in polygon
-
-"""
-
-
-
 
 def placeGem(pt, norm, gem):
 	cmds.select('gem')
@@ -177,7 +170,9 @@ def placeGem(pt, norm, gem):
 
 	r_angle = getRotAngle(norm)
 	# print r_angle
-	cmds.rotate(r_angle[0],r_angle[1],r_angle[2])
+
+
+	cmds.rotate(r_angle[0],r_angle[1],r_angle[2], r = True)
 	cmds.move(pt[0], pt[1], pt[2])
 
 
@@ -205,7 +200,15 @@ def getRotAngle(n):
 		new_val = math.degrees(math.acos(val))
 		ret.append(new_val)
 
-	return ret
+	new_ret = [ret[1], 90+ret[0], 0]
+	if n[2]>0:
+		new_ret[1] = 90-ret[0]
+
+	print 'normal: ' + str(n)
+	print 'rotation: ' + str(new_ret)
+	print '---'
+	return new_ret
+
 
 	"""
 	THE NEW PLAN:
@@ -216,4 +219,3 @@ def getRotAngle(n):
 	fin.
 
 	"""
-run()
