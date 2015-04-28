@@ -35,7 +35,7 @@ def findPoints(baseObj,gem):
 	normals = []
 	for face_i in range(cmds.polyEvaluate('pCube1', f=True)):
 		face = cmds.select('pCube1.f['+ str(face_i)+']')
-		bounds = cmds.polyEvaluate(b = True)
+		bounds = cmds.polyEvaluate(bc = True)
 
 		normal = cmds.polyInfo(fn=True)
 		verts = cmds.polyListComponentConversion(tv = True)
@@ -43,7 +43,6 @@ def findPoints(baseObj,gem):
 		verts_f= cmds.filterExpand( ex=True, sm=31 )
 
 		corners = []
-
 		for vert_i in verts_f:
 			cmds.select(vert_i)
 			corners.append(cmds.xform(query=True, translation=True, worldSpace=True))
@@ -62,44 +61,45 @@ def findPoints(baseObj,gem):
 
 		hit_bound = [0,0,0,0,0,0]
 		curr_pt = avg
-
-
 		#finding vector perpendicular to normal that lies in the plane between the normal and y axis (0,1,0)
 		#this can be simplified if it works
-		up = [-1*normal_f[1]*normal_f[i] for i in range(0,3)]
-		up[1] = 1 - up[1]
+		if normal_f == [0.0,1.0,0.0] or normal_f == [0.0,-1.0,0.0]:
+			up = [-1*normal_f[2]*normal_f[i] for i in range(0,3)]
+			up[2] = 1 - up[2]
+		else:
+			up = [-1*normal_f[1]*normal_f[i] for i in range(0,3)]
+			up[1] = 1 - up[1]
+
+
 		up = normalize(up)
 		right = normalize(crossProd(normal_f, up))
-
 		count = 0
+		sub_count_goal = 0
 		while sum(hit_bound)<6:		#while we haven't hit all 6 bounds, keep looking for points
 			case = count % 4
 			sub_count = 0
-			sub_count_goal = 1
+
 			up_switch = False
 
 			while sub_count < sub_count_goal:
+				temp = curr_pt
 				#going up
 				if case == 0:
-					if up_switch:
-						sub_count_goal+=1
-						up_switch = False
-					curr_pt = [curr_pt[p] + gem_dim*up[p] for p in range(len(curr_pt))]
+					curr_pt = [temp[p] + gem_dim*up[p] for p in range(3)]
 
 				#going right
 				elif case == 1:
-					curr_pt = [curr_pt[p] - gem_dim*right[p] for p in range(len(curr_pt))]
+					
+					curr_pt = [temp[p] + gem_dim*right[p] for p in range(3)]
 
 				#going down
 				elif case == 2:
-					if not up_switch:
-						sub_count_goal+=1
-						up_switch = True
-					curr_pt = [curr_pt[p] - gem_dim*up[p] for p in range(len(curr_pt))]
+					curr_pt = [temp[p] - gem_dim*up[p] for p in range(3)]
 				#going left
 				else:
-					curr_pt = [curr_pt[p] - gem_dim*right[p] for p in range(len(curr_pt))]
-
+					
+					curr_pt = [temp[p] - gem_dim*right[p] for p in range(3)]
+				
 				if checkPt(curr_pt, bounds, corners):
 					points.append(curr_pt)
 					normals.append(normal_f)
@@ -108,14 +108,16 @@ def findPoints(baseObj,gem):
 			
 			count += 1
 
-			
+			if case == 1 or case == 3:
+				sub_count_goal += 1
+				up_switch = not up_switch
+
 			#check to see if we've hit any bounds
 			for i in range(3):
 				if curr_pt[i] <= bounds[i][0]: 
 					hit_bound[2*i] = 1
 				if curr_pt[i] >= bounds[i][1]:
 					hit_bound[2*i+1] = 1
-
 
 	for c in range(len(points)):
 		placeGem(points[c],normals[c],gem)
@@ -125,21 +127,19 @@ def findPoints(baseObj,gem):
 # adapted from:
 # http://bbs.dartmouth.edu/~fangq/MATH/download/source/Determining%20if%20a%20point%20lies%20on%20the%20interior%20of%20a%20polygon.htm
 def checkPt(pt, bounds, verts):
-
 	#quick check that it's within the bounding box
 	for i in range(3):
-		if pt[i] <= bounds[i][0]: 
+		if pt[i] < bounds[i][0]:
 			return False
-		if pt[i] >= bounds[i][1]:
+		if pt[i] > bounds[i][1]:
 			return False
-
 	anglesum = 0
 	costheta = 0
 
    	eps = 0.0000001
    	for i in range(len(verts)):
-		pt1 = [0,0,0]
-		pt2 = [0,0,0]
+		p1 = [0,0,0]
+		p2 = [0,0,0]
 		p1[0] = verts[i][0] - pt[0]
 		p1[1] = verts[i][1] - pt[1]
 		p1[2] = verts[i][2] - pt[2]
@@ -147,18 +147,17 @@ def checkPt(pt, bounds, verts):
 		p2[1] = verts[(i+1)%len(verts)][1] - pt[1]
 		p2[2] = verts[(i+1)%len(verts)][2] - pt[2]
 
-		m1 = getMagnitude(p1)*getMagnitude(p1)
-		m2 = getMagnitude(p2)*getMagnitude(p2)
+		m1 = getMagnitude(p1)
+		m2 = getMagnitude(p2)
 		if (m1*m2 <= eps):
-			anglesum = 2*math.pi #We are on a node, consider this inside 
-			break
-		else:
-			costheta = (p1.x*p2.x + p1.y*p2.y + p1.z*p2.z) / (m1*m2)
+			return True
 
-		anglesum += acos(costheta)
+		costheta = (p1[0]*p2[0] + p1[1]*p2[1] + p1[2]*p2[2])/(m1*m2)
+		costheta = min(1,max(costheta,-1))
+		anglesum += math.acos(costheta)
 
-		#angle sum approx equal to 2 pi
-	if math.abs(anglesum-2*math.pi) <= eps:
+	#angle sum approx equal to 2 pi
+	if math.fabs(anglesum-2*math.pi) <= 2.53:		#this is veryyyyy fishy
 		return True
 	return False
 
@@ -177,7 +176,7 @@ def placeGem(pt, norm, gem):
 	cmds.duplicate()
 
 	r_angle = getRotAngle(norm)
-	print r_angle
+	# print r_angle
 	cmds.rotate(r_angle[0],r_angle[1],r_angle[2])
 	cmds.move(pt[0], pt[1], pt[2])
 
@@ -217,3 +216,4 @@ def getRotAngle(n):
 	fin.
 
 	"""
+run()
