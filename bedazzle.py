@@ -29,7 +29,7 @@ def makeGem():
 
 #place gem on a 
 def findPoints(baseObj,gem):
-	gem_dim = .75*.25
+	gem_dim = .75*.25+ .02
 	cmds.select('pCube1')
 	points = []
 	normals = []
@@ -169,9 +169,6 @@ def placeGem(pt, norm, gem):
 	cmds.duplicate()
 
 	r_angle = getRotAngle(norm)
-	# print r_angle
-
-
 	cmds.rotate(r_angle[0],r_angle[1],r_angle[2], r = True)
 	cmds.move(pt[0], pt[1], pt[2])
 
@@ -204,9 +201,6 @@ def getRotAngle(n):
 	if n[2]>0:
 		new_ret[1] = 90-ret[0]
 
-	print 'normal: ' + str(n)
-	print 'rotation: ' + str(new_ret)
-	print '---'
 	return new_ret
 
 
@@ -219,3 +213,4 @@ def getRotAngle(n):
 	fin.
 
 	"""
+run()
