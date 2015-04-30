@@ -30,7 +30,6 @@ def makeGem():
 
 #place gem on a 
 def findPoints(baseObj,gem):
-
 	gem_dim = .75*.25+.02
 
 	cmds.select('pCube1')
@@ -38,7 +37,11 @@ def findPoints(baseObj,gem):
 	points = []
 	normals = []
 
-	for face_i in range(cmds.polyEvaluate('pCube1', f=True)):
+	num_faces = cmds.polyEvaluate('pCube1', f=True)
+	print "Starting to iterate..."
+	for face_i in range(num_faces):
+		if ((num_faces - face_i) % 5 == 0):
+			print str(num_faces - face_i) + " faces remaining...."
 		face = cmds.select('pCube1.f['+ str(face_i)+']')
 		bounds = cmds.polyEvaluate(bc = True)
 
@@ -121,6 +124,7 @@ def findPoints(baseObj,gem):
 				if curr_pt[i] >= bounds[i][1]:
 					hit_bound[2*i+1] = 1
 
+	print "Placing " + len(points) + " gems..."
 	for c in range(len(points)):
 		placeGem(points[c],normals[c],gem)
 
