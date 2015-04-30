@@ -22,7 +22,7 @@ def pickBaseObject():
 
 #make gem geometry (one for now)
 def makeGem():
-	cmds.polyCube(name="gem", w=.25, d=.25, h=.1)
+	cmds.polyCube(name="gem", w=.25, d=.25, h=.05)
 	cmds.polyMoveEdge( 'gem.e[1:2]', s=(.75, .75, .75) )
 	# cmds.polyMoveEdge( 'gem.e[6:7]', s=(.75, .75, .75) )		#not sure this line is necessary
 	# cmds.polyMoveEdge( 'gem.e[1:2]', t=(0, -.5, 0) )
@@ -37,9 +37,8 @@ def findPoints(baseObj,gem):
 	cmds.polyTriangulate()
 	points = []
 	normals = []
-	for face_i in range(cmds.polyEvaluate('pCube1', f=True)):
-		# print(face_i)
 
+	for face_i in range(cmds.polyEvaluate('pCube1', f=True)):
 		face = cmds.select('pCube1.f['+ str(face_i)+']')
 		bounds = cmds.polyEvaluate(bc = True)
 
@@ -47,7 +46,6 @@ def findPoints(baseObj,gem):
 		verts = cmds.polyListComponentConversion(tv = True)
 		cmds.select(verts)
 		verts_f= cmds.filterExpand( ex=True, sm=31 )
-		# print verts_f
 
 		corners = []
 		for vert_i in verts_f:
@@ -63,24 +61,23 @@ def findPoints(baseObj,gem):
 
 		normal_f = [float(i) for i in normal[0].split(':')[1].split()]
 		
-		# points.append(avg)
-		# normals.append(normal_f)
+		points.append(avg)
+		normals.append(normal_f)
 
 		hit_bound = [0,0,0,0,0,0]
 		curr_pt = avg
+		
 		#finding vector perpendicular to normal that lies in the plane between the normal and y axis (0,1,0)
 		#this can be simplified if it works
-
 		#unless normal is already the y axis, then use the z axis as "up"
+		neg_n = normalize([-1*n for n in normal_f])
 		if normal_f == [0.0,1.0,0.0] or normal_f == [0.0,-1.0,0.0]:
-			up = [-1*normal_f[2]*normal_f[i] for i in range(0,3)]
-			up[2] = 1 - up[2]
+			up = [-1*neg_n[2]*neg_n[0], -1*neg_n[2]*neg_n[1],1-neg_n[2]*neg_n[2]]
 		else:
-			up = [-1*normal_f[1]*normal_f[i] for i in range(0,3)]
-			up[1] = 1 - up[1]
-
+			up = [-1*neg_n[1]*neg_n[0], 1-neg_n[1]*neg_n[1],-1*neg_n[1]*neg_n[2]]
 
 		up = normalize(up)
+
 		right = normalize(crossProd(normal_f, up))
 		count = 0
 		sub_count_goal = 0
@@ -95,18 +92,14 @@ def findPoints(baseObj,gem):
 				#going up
 				if case == 0:
 					curr_pt = [temp[p] + gem_dim*up[p] for p in range(3)]
-
 				#going right
-				elif case == 1:
-					
+				elif case == 1:					
 					curr_pt = [temp[p] + gem_dim*right[p] for p in range(3)]
-
 				#going down
 				elif case == 2:
 					curr_pt = [temp[p] - gem_dim*up[p] for p in range(3)]
 				#going left
-				else:
-					
+				else:				
 					curr_pt = [temp[p] - gem_dim*right[p] for p in range(3)]
 				
 				if checkPt(curr_pt, bounds, corners):
@@ -145,7 +138,7 @@ def checkPt(pt, bounds, verts):
 	anglesum = 0
 	costheta = 0
 
-   	eps = 0.0000001
+   	eps = 0.000001
    	for i in range(len(verts)):
 		p1 = [0,0,0]
 		p2 = [0,0,0]
@@ -165,8 +158,8 @@ def checkPt(pt, bounds, verts):
 		costheta = min(1,max(costheta,-1))
 		anglesum += math.acos(costheta)
 
-	#angle sum approx equal to pi
-	if math.fabs(anglesum-math.pi) <= 3:		#this is veryyyyy fishy
+	#angle sum approx equal to 2*pi
+	if anglesum >= 1.95*math.pi and anglesum <= 2.05*math.pi:
 		return True
 	return False
 
