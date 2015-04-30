@@ -8,6 +8,7 @@ def run():
 	findPoints(base, g)
 
 	cmds.delete('gem')
+	cmds.group("gem*", name = "gems")
 
 #return first object in the scene (for now) except for gemstones
 def pickBaseObject():
@@ -29,11 +30,14 @@ def makeGem():
 
 #place gem on a 
 def findPoints(baseObj,gem):
-	gem_dim = .75*.25
+	gem_dim = .75*.25+.02
 	cmds.select('pCube1')
+	cmds.polyTriangulate()
 	points = []
 	normals = []
 	for face_i in range(cmds.polyEvaluate('pCube1', f=True)):
+		# print(face_i)
+
 		face = cmds.select('pCube1.f['+ str(face_i)+']')
 		bounds = cmds.polyEvaluate(bc = True)
 
@@ -41,6 +45,7 @@ def findPoints(baseObj,gem):
 		verts = cmds.polyListComponentConversion(tv = True)
 		cmds.select(verts)
 		verts_f= cmds.filterExpand( ex=True, sm=31 )
+		# print verts_f
 
 		corners = []
 		for vert_i in verts_f:
@@ -50,14 +55,14 @@ def findPoints(baseObj,gem):
 		avg=[0,0,0]
 
 		for p in corners:
-			avg[0] += p[0]/4
-			avg[1] += p[1]/4
-			avg[2] += p[2]/4
+			avg[0] += p[0]/len(corners)
+			avg[1] += p[1]/len(corners)
+			avg[2] += p[2]/len(corners)
 
 		normal_f = [float(i) for i in normal[0].split(':')[1].split()]
 		
-		points.append(avg)
-		normals.append(normal_f)
+		# points.append(avg)
+		# normals.append(normal_f)
 
 		hit_bound = [0,0,0,0,0,0]
 		curr_pt = avg
@@ -158,15 +163,15 @@ def checkPt(pt, bounds, verts):
 		costheta = min(1,max(costheta,-1))
 		anglesum += math.acos(costheta)
 
-	#angle sum approx equal to 2 pi
-	if math.fabs(anglesum-2*math.pi) <= 2.53:		#this is veryyyyy fishy
+	#angle sum approx equal to pi
+	if math.fabs(anglesum-math.pi) <= 3:		#this is veryyyyy fishy
 		return True
 	return False
 
 
 def placeGem(pt, norm, gem):
 	cmds.select('gem')
-	cmds.duplicate()
+	cmds.instance()
 
 	r_angle = getRotAngle(norm)
 	# print r_angle
@@ -204,9 +209,6 @@ def getRotAngle(n):
 	if n[2]>0:
 		new_ret[1] = 90-ret[0]
 
-	print 'normal: ' + str(n)
-	print 'rotation: ' + str(new_ret)
-	print '---'
 	return new_ret
 
 
