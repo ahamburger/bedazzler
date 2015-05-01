@@ -2,11 +2,12 @@ import maya.cmds as cmds
 import maya.OpenMaya as OM
 import math
 
-def run():
+def run(simplify):
 	base = pickBaseObject()
 	g = makeGem()
 	
-	triangulateMesh()
+	# simplify = 0
+	triangulateMesh(simplify)
 	findPoints(base, g)
 
 	cmds.delete('gem')	#need to account for running script more than once maybe
@@ -28,10 +29,14 @@ def makeGem():
 	cmds.polyCube(name="gem", w=.25, d=.25, h=.05)
 	cmds.polyMoveEdge( 'gem.e[1:2]', s=(.75, .75, .75) )
 
-def triangulateMesh():
+def triangulateMesh(simplify):
 	cmds.select('pCube1')
 	cmds.duplicate('pCube1', name = "triObj")
 	cmds.select('triObj')
+
+	if simplify > 0:
+		cmds.polyReduce(ver = 1, p = simplify)
+
 	num_faces = cmds.polyEvaluate('triObj', f=True)
 	
 	#iterate over faces
@@ -64,7 +69,6 @@ def isCoplanar(verts):
 		return sum([v1[i] * v2crossv3[i] for i in range(0,3)]) == 0
 	return False
 
-#place gem on a 
 def findPoints(baseObj,gem):
 	gem_dim = .75*.25+.02
 
@@ -136,6 +140,10 @@ def findPoints(baseObj,gem):
 				else:				
 					curr_pt = [temp[p] - gem_dim*right[p] for p in range(3)]
 				
+				# if not normal_f == [1.0,0.0,0.0] and not normal_f == [-1.0,0.0,0.0]:
+				# 	print "FACE: " + str(face_i)
+				# 	print curr_pt
+				# 	print '--'
 				if checkPt(curr_pt, bounds, corners):
 					points.append(curr_pt)
 					normals.append(normal_f)
@@ -193,8 +201,10 @@ def checkPt(pt, bounds, verts):
 		costheta = min(1,max(costheta,-1))
 		anglesum += math.acos(costheta)
 
-	#angle sum approx equal to 2*pi
-	if anglesum >= 1.95*math.pi and anglesum <= 2.05*math.pi:
+	#angle sum approx equal to 2*pi-- should probably change this to be an epsilon value
+
+	if anglesum >= 1.95*math.pi and anglesum <= 2.05*math.pi or (len(verts) > 3 and anglesum <= 3.05*math.pi):
+		#not sure why quads need greater angle sum value. this seems wrong.
 		return True
 	return False
 
@@ -244,7 +254,7 @@ def normalize(v):
 def getRotAngle(n):
 	ret = []
 
-	n = normalize(n)	#may already be normalized but doesn't hurt
+	n = normalize(n)
 	for val in n:
 		new_val = math.degrees(math.acos(val))
 		ret.append(new_val)
