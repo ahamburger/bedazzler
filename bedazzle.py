@@ -32,14 +32,12 @@ def triangulateMesh():
 	cmds.select('pCube1')
 	cmds.duplicate('pCube1', name = "triObj")
 	cmds.select('triObj')
-	cmds.select('triObj')
 	num_faces = cmds.polyEvaluate('triObj', f=True)
 	
 	#iterate over faces
-	print "Starting to iterate over faces..."
+	print "Triangulating faces..."
 	for face_i in range(num_faces):		
-		face = cmds.select('triObj.f['+ str(face_i)+']')
-		
+		face = cmds.select('triObj.f['+ str(face_i)+']')		
 		verts = getCorners(face_i)
 
 		if not isCoplanar(verts):
@@ -64,7 +62,6 @@ def isCoplanar(verts):
 		v3 = [verts[3][i] - verts[2][i] for i in range(0,3)]
 		v2crossv3 = crossProd(v2,v3)
 		return sum([v1[i] * v2crossv3[i] for i in range(0,3)]) == 0
-
 	return False
 
 #place gem on a 
@@ -76,6 +73,7 @@ def findPoints(baseObj,gem):
 	
 	cmds.select('triObj')
 	num_faces = cmds.polyEvaluate('triObj', f=True)	
+	print "Starting to iterate over faces..."
 	for face_i in range(num_faces):
 		if ((num_faces - face_i) % 5 == 0):
 			print "Approximately " + str(num_faces - face_i) + " faces remaining...."
@@ -106,12 +104,18 @@ def findPoints(baseObj,gem):
 		else:
 			up = [-1*neg_n[1]*neg_n[0], 1-neg_n[1]*neg_n[1],-1*neg_n[1]*neg_n[2]]
 
+		#vectors for spiraling
 		up = normalize(up)
-
 		right = normalize(crossProd(normal_f, up))
+
 		count = 0
 		sub_count_goal = 0
+		# if not normal_f == [1.0,0.0,0.0] and not normal_f == [-1.0,0.0,0.0]:
+		# 	print "FACE: " + str(face_i)
+		# 	print bounds
+		# 	print '--'
 		while sum(hit_bound)<6:		#while we haven't hit all 6 bounds, keep looking for points
+
 			case = count % 4
 			sub_count = 0
 
@@ -160,11 +164,11 @@ def findPoints(baseObj,gem):
 # adapted from:
 # http://bbs.dartmouth.edu/~fangq/MATH/download/source/Determining%20if%20a%20point%20lies%20on%20the%20interior%20of%20a%20polygon.htm
 def checkPt(pt, bounds, verts):
+	#want to check all extremes of gemstone. Add this once have better idea of gemstone shape
+
 	#quick check that it's within the bounding box
 	for i in range(3):
-		if pt[i] < bounds[i][0]:
-			return False
-		if pt[i] > bounds[i][1]:
+		if pt[i] < bounds[i][0] or pt[i] > bounds[i][1]:
 			return False
 	anglesum = 0
 	costheta = 0
