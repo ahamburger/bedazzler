@@ -5,9 +5,12 @@ import math
 def run():
 	base = pickBaseObject()
 	g = makeGem()
+	
+	triangulateMesh()
 	findPoints(base, g)
 
-	cmds.delete('gem')
+	cmds.delete('gem')	#need to account for running script more than once maybe
+	cmds.delete('triObj')
 	cmds.group("gem*", name = "gems")
 
 #return first object in the scene (for now) except for gemstones
@@ -24,45 +27,69 @@ def pickBaseObject():
 def makeGem():
 	cmds.polyCube(name="gem", w=.25, d=.25, h=.05)
 	cmds.polyMoveEdge( 'gem.e[1:2]', s=(.75, .75, .75) )
-	# cmds.polyMoveEdge( 'gem.e[6:7]', s=(.75, .75, .75) )		#not sure this line is necessary
-	# cmds.polyMoveEdge( 'gem.e[1:2]', t=(0, -.5, 0) )
 
+def triangulateMesh():
+	cmds.select('pCube1')
+	cmds.duplicate('pCube1', name = "triObj")
+	cmds.select('triObj')
+	cmds.select('triObj')
+	num_faces = cmds.polyEvaluate('triObj', f=True)
+	
+	#iterate over faces
+	print "Starting to iterate over faces..."
+	for face_i in range(num_faces):		
+		face = cmds.select('triObj.f['+ str(face_i)+']')
+		
+		verts = getCorners(face_i)
+
+		if not isCoplanar(verts):
+			cmds.polyTriangulate('triObj.f['+ str(face_i)+']')
+
+def getCorners(face_i):
+	face = cmds.select('triObj.f['+ str(face_i)+']')
+	verts = cmds.polyListComponentConversion(tv = True)
+
+	cmds.select(verts)
+	verts_f= cmds.filterExpand( ex=True, sm=31 )
+	corners = []
+	for vert_i in verts_f:
+		cmds.select(vert_i)
+		corners.append(cmds.xform(query=True, translation=True, worldSpace=True))
+	return corners
+
+def isCoplanar(verts):
+	if len(verts) == 4:
+		v1 = [verts[2][i] - verts[0][i] for i in range(0,3)]
+		v2 = [verts[1][i] - verts[0][i] for i in range(0,3)]
+		v3 = [verts[3][i] - verts[2][i] for i in range(0,3)]
+		v2crossv3 = crossProd(v2,v3)
+		return sum([v1[i] * v2crossv3[i] for i in range(0,3)]) == 0
+
+	return False
 
 #place gem on a 
 def findPoints(baseObj,gem):
 	gem_dim = .75*.25+.02
 
-	cmds.select('pCube1')
-	cmds.polyTriangulate()
 	points = []
 	normals = []
-
-	num_faces = cmds.polyEvaluate('pCube1', f=True)
-	print "Starting to iterate..."
+	
+	cmds.select('triObj')
+	num_faces = cmds.polyEvaluate('triObj', f=True)	
 	for face_i in range(num_faces):
 		if ((num_faces - face_i) % 5 == 0):
-			print str(num_faces - face_i) + " faces remaining...."
-		face = cmds.select('pCube1.f['+ str(face_i)+']')
-		bounds = cmds.polyEvaluate(bc = True)
-
-		normal = cmds.polyInfo(fn=True)
-		verts = cmds.polyListComponentConversion(tv = True)
-		cmds.select(verts)
-		verts_f= cmds.filterExpand( ex=True, sm=31 )
-
-		corners = []
-		for vert_i in verts_f:
-			cmds.select(vert_i)
-			corners.append(cmds.xform(query=True, translation=True, worldSpace=True))
+			print "Approximately " + str(num_faces - face_i) + " faces remaining...."
 		
-		avg=[0,0,0]
+		cmds.select('triObj.f['+ str(face_i)+']')
+		bounds = cmds.polyEvaluate(bc = True)
+		normal = cmds.polyInfo(fn=True)
+		corners = getCorners(face_i)
 
-		for p in corners:
-			avg[0] += p[0]/len(corners)
-			avg[1] += p[1]/len(corners)
-			avg[2] += p[2]/len(corners)
+		# if not isBigEnough(corners, gem_dim):
+		# 	continue
 
-		normal_f = [float(i) for i in normal[0].split(':')[1].split()]
+		avg = getAvg(corners)
+		normal_f = normalize([float(i) for i in normal[0].split(':')[1].split()])
 		
 		points.append(avg)
 		normals.append(normal_f)
@@ -124,7 +151,7 @@ def findPoints(baseObj,gem):
 				if curr_pt[i] >= bounds[i][1]:
 					hit_bound[2*i+1] = 1
 
-	print "Placing " + len(points) + " gems..."
+	print "Placing " + str(len(points)) + " gems..."
 	for c in range(len(points)):
 		placeGem(points[c],normals[c],gem)
 
@@ -177,6 +204,21 @@ def placeGem(pt, norm, gem):
 	cmds.move(pt[0], pt[1], pt[2])
 
 
+#check edge length. returns true if one edge is longer than the dimension of a gem
+#but this doesn't work yet
+def isBigEnough(verts, gem_dim):
+	# max_length = 0
+
+	# for i in range(len(verts)):
+	# 	p1 = verts[i]
+	# 	p2 = verts[(i+1)%len(verts)]
+
+	# 	distance = sum([p1[j]*p2[j] for j in range(0,3)])
+	# 	max_length = max(max_length, distance)
+
+	# return (max_length >= gem_dim)
+	return True
+
 def getMagnitude(n):
 	return math.sqrt(sum(n[i]* n[i] for i in range(len(n))))
 
@@ -187,6 +229,8 @@ def crossProd(a, b):
 	v[1] = a[2]*b[0] - a[0]*b[2]
 	v[2] = a[0]*b[1] - a[1]*b[0]
 
+	if v == [0.0,0.0,0.0]:
+		return v
 	return normalize(v)
 
 def normalize(v):
@@ -207,13 +251,12 @@ def getRotAngle(n):
 
 	return new_ret
 
+def getAvg(corners):
+	avg=[0,0,0]
 
-	"""
-	THE NEW PLAN:
-	Iterate over faces
-	Find midpoint of each faces
-		Place gem
-	Spiral around that midpoint, placing gems using a vector that lies in the plane (perpendicular to an edge? random?)
-	fin.
+	for p in corners:
+		avg[0] += p[0]/len(corners)
+		avg[1] += p[1]/len(corners)
+		avg[2] += p[2]/len(corners)
 
-	"""
+	return avg
