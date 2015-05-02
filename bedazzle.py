@@ -3,26 +3,25 @@ import maya.OpenMaya as OM
 import math
 
 def run(simplify):
-	base = pickBaseObject()
-	g = makeGem()
-	
-	# simplify = 0
+	#ADD check that base object exists
+	makeGem()
 	triangulateMesh(simplify)
-	findPoints(base, g)
+
+	gem_dim = .75*.25+.02		#hardcoded for now
+	findPoints(gem_dim)
 
 	cmds.delete('gem')	#need to account for running script more than once maybe
 	cmds.delete('triObj')
 	cmds.group("gem*", name = "gems")
 
 #return first object in the scene (for now) except for gemstones
-def pickBaseObject():
-	objects = cmds.ls();
-	if len(objects)==0:
-		print("No objects in scene")
-		return
-	for o in objects:
-		if "gem" not in o:
-			return o
+def pickBaseObject(selectedObject):
+	if len(selectedObject) > 1 or len(selectedObject) == 0:
+		cmds.textField("baseObject", e=True, tx="Please select exactly one object")
+	else:
+		global baseObject
+		baseObject = selectedObject[0]
+		cmds.textField("baseObject", e=True, tx=baseObject)
 
 #make gem geometry (one for now)
 def makeGem():
@@ -30,8 +29,8 @@ def makeGem():
 	cmds.polyMoveEdge( 'gem.e[1:2]', s=(.75, .75, .75) )
 
 def triangulateMesh(simplify):
-	cmds.select('pCube1')
-	cmds.duplicate('pCube1', name = "triObj")
+	cmds.select(baseObject)
+	cmds.duplicate(baseObject, name = "triObj")
 	cmds.select('triObj')
 
 	if simplify > 0:
@@ -66,12 +65,10 @@ def isCoplanar(verts):
 		v2 = [verts[1][i] - verts[0][i] for i in range(0,3)]
 		v3 = [verts[3][i] - verts[2][i] for i in range(0,3)]
 		v2crossv3 = crossProd(v2,v3)
-		return sum([v1[i] * v2crossv3[i] for i in range(0,3)]) == 0
+		return math.fabs(sum([v1[i] * v2crossv3[i] for i in range(0,3)])) <= .001
 	return False
 
-def findPoints(baseObj,gem):
-	gem_dim = .75*.25+.02
-
+def findPoints(gem_dim):
 	points = []
 	normals = []
 	
@@ -127,26 +124,34 @@ def findPoints(baseObj,gem):
 
 			while sub_count < sub_count_goal:
 				temp = curr_pt
-				#going up
-				if case == 0:
-					curr_pt = [temp[p] + gem_dim*up[p] for p in range(3)]
+				dir_vec = up
 				#going right
-				elif case == 1:					
-					curr_pt = [temp[p] + gem_dim*right[p] for p in range(3)]
+				if case == 1:					
+					dir_vec = right
 				#going down
 				elif case == 2:
-					curr_pt = [temp[p] - gem_dim*up[p] for p in range(3)]
+					dir_vec = [-1*u for u in up]
 				#going left
-				else:				
-					curr_pt = [temp[p] - gem_dim*right[p] for p in range(3)]
-				
-				# if not normal_f == [1.0,0.0,0.0] and not normal_f == [-1.0,0.0,0.0]:
-				# 	print "FACE: " + str(face_i)
-				# 	print curr_pt
-				# 	print '--'
+				elif case == 3:				
+					dir_vec = [-1*r for r in right]
+
+				curr_pt =  [temp[p] + gem_dim*dir_vec[p] for p in range(3)]
+
 				if checkPt(curr_pt, bounds, corners):
-					points.append(curr_pt)
-					normals.append(normal_f)
+					pts_to_check = []
+					pts_to_check.append([curr_pt[p] + 0.5*gem_dim*up[p] for p in range(3)])
+					pts_to_check.append([curr_pt[p] - 0.5*gem_dim*up[p] for p in range(3)])
+					pts_to_check.append([curr_pt[p] + 0.5*gem_dim*right[p] for p in range(3)])
+					pts_to_check.append([curr_pt[p] - 0.5*gem_dim*right[p] for p in range(3)])
+
+					useSpot = True
+					for p in pts_to_check:
+						if useSpot:
+							useSpot = checkPt(p, bounds, corners)
+
+					if useSpot:
+						points.append(curr_pt)
+						normals.append(normal_f)
 
 				sub_count +=1
 			
@@ -165,7 +170,7 @@ def findPoints(baseObj,gem):
 
 	print "Placing " + str(len(points)) + " gems..."
 	for c in range(len(points)):
-		placeGem(points[c],normals[c],gem)
+		placeGem(points[c],normals[c])
 
 
 # check if point is within bounds of the face
@@ -209,7 +214,7 @@ def checkPt(pt, bounds, verts):
 	return False
 
 
-def placeGem(pt, norm, gem):
+def placeGem(pt, norm):
 	cmds.select('gem')
 	cmds.instance()
 
