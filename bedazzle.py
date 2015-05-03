@@ -14,6 +14,8 @@ def run(simplify):
 	cmds.delete('triObj')
 	cmds.group("gem*", name = "gems")
 
+	throwShade()
+
 #return first object in the scene (for now) except for gemstones
 def pickBaseObject(selectedObject):
 	if len(selectedObject) > 1 or len(selectedObject) == 0:
@@ -83,9 +85,6 @@ def findPoints(gem_dim):
 		bounds = cmds.polyEvaluate(bc = True)
 		normal = cmds.polyInfo(fn=True)
 		corners = getCorners(face_i)
-
-		# if not isBigEnough(corners, gem_dim):
-		# 	continue
 
 		avg = getAvg(corners)
 		normal_f = normalize([float(i) for i in normal[0].split(':')[1].split()])
@@ -222,21 +221,12 @@ def placeGem(pt, norm):
 	cmds.rotate(r_angle[0],r_angle[1],r_angle[2], r = True)
 	cmds.move(pt[0], pt[1], pt[2])
 
+def throwShade():
+	if not cmds.objExists('test_lambert'):
+		cmds.file("shader_test.mb", i=True)
 
-#check edge length. returns true if one edge is longer than the dimension of a gem
-#but this doesn't work yet
-def isBigEnough(verts, gem_dim):
-	# max_length = 0
-
-	# for i in range(len(verts)):
-	# 	p1 = verts[i]
-	# 	p2 = verts[(i+1)%len(verts)]
-
-	# 	distance = sum([p1[j]*p2[j] for j in range(0,3)])
-	# 	max_length = max(max_length, distance)
-
-	# return (max_length >= gem_dim)
-	return True
+	cmds.select("gem*")
+	cmds.hyperShade(a="test_lambert")
 
 def getMagnitude(n):
 	return math.sqrt(sum(n[i]* n[i] for i in range(len(n))))
