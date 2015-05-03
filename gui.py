@@ -27,6 +27,17 @@ def windowUI(*args):
 	# reduce mesh
 	cmds.rowColumnLayout(w=380)
 	cmds.intSliderGrp("meshReduce", l="% to reduce mesh: ", v=0, min=0, max=100, f=True,w=370)
+	
+	# size
+	cmds.rowColumnLayout(w=380)
+	cmds.floatSliderGrp("size", l="Gem Size: ", v=.25, min=0.01, max=1.0, f=True,w=370)		#make real max bigger
+
+	# padding
+	cmds.rowColumnLayout(w=380)
+	cmds.floatSliderGrp("padding", l="Spacing: ", v=0, min=0, max=1.0, f=True,w=370)	#make real max bigger
+	
+	#shade
+	cmds.checkBox("shaderCheckBox", l='Apply a simple shader', value=False)
 
 	# reset button
 	cmds.button("resetButton", l="Reset to default values", w=370, al="center", c=windowUI)
@@ -45,12 +56,12 @@ def selectBaseObjectButton(*args):
 
 def bedazzleButton(*args):
 	reduceMesh = cmds.intSliderGrp("meshReduce", query=True, v=True)
-	# size = cmds.intSliderGrp("meshReduce", query=True, v=True)
+	size = cmds.floatSliderGrp("size", query=True, v=True)
+	padding = cmds.floatSliderGrp("padding", query=True, v=True)
+	shade = cmds. checkBox("shaderCheckBox", query=True, v=True)
 
-
-	# call function
-	run(reduceMesh)
-	# shade(shaderCheckBox)
-
+	success = run(reduceMesh, size, padding, shade)
+	if not success:
+		
 
 windowUI()

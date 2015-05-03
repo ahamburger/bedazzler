@@ -2,33 +2,43 @@ import maya.cmds as cmds
 import maya.OpenMaya as OM
 import math
 
-def run(simplify):
-	#ADD check that base object exists
-	makeGem()
+def run(simplify, size, padding,shade):
+	if not cmds.objExists(baseObject):
+		cmds.textField("baseObject", e=True, tx="Please select a valid object.")
+		return False
+	makeGem(size)
 	triangulateMesh(simplify)
-
-	gem_dim = .75*.25+.02		#hardcoded for now
-	findPoints(gem_dim)
+	findPoints(size+padding)
 
 	cmds.delete('gem')	#need to account for running script more than once maybe
 	cmds.delete('triObj')
 	cmds.group("gem*", name = "gems")
 
-	throwShade()
+	if shade:
+		throwShade()
+	return True
 
 #return first object in the scene (for now) except for gemstones
 def pickBaseObject(selectedObject):
-	if len(selectedObject) > 1 or len(selectedObject) == 0:
-		cmds.textField("baseObject", e=True, tx="Please select exactly one object")
+	if len(selectedObject) == 0:
+		cmds.textField("baseObject", e=True, tx="Please select an object.")
+	elif len(selectedObject) > 1:
+		cmds.textField("baseObject", e=True, tx="Please select just one object.")
+	elif not cmds.objExists(selectedObject[0]):
+		cmds.textField("baseObject", e=True, tx="Please select a valid object.")
 	else:
 		global baseObject
 		baseObject = selectedObject[0]
 		cmds.textField("baseObject", e=True, tx=baseObject)
 
 #make gem geometry (one for now)
-def makeGem():
-	cmds.polyCube(name="gem", w=.25, d=.25, h=.05)
-	cmds.polyMoveEdge( 'gem.e[1:2]', s=(.75, .75, .75) )
+def makeGem(size):
+	#import gem
+	if not cmds.objExists('gem'):
+		cmds.file("gem.ma", i=True)
+
+	cmds.select('gem')
+	cmds.xform(s=(size,size,size))
 
 def triangulateMesh(simplify):
 	cmds.select(baseObject)
@@ -110,10 +120,7 @@ def findPoints(gem_dim):
 
 		count = 0
 		sub_count_goal = 0
-		# if not normal_f == [1.0,0.0,0.0] and not normal_f == [-1.0,0.0,0.0]:
-		# 	print "FACE: " + str(face_i)
-		# 	print bounds
-		# 	print '--'
+
 		while sum(hit_bound)<6:		#while we haven't hit all 6 bounds, keep looking for points
 
 			case = count % 4
@@ -222,11 +229,11 @@ def placeGem(pt, norm):
 	cmds.move(pt[0], pt[1], pt[2])
 
 def throwShade():
-	if not cmds.objExists('test_lambert'):
-		cmds.file("shader_test.mb", i=True)
+	if not cmds.objExists('gem_shader'):
+		cmds.file("shader.ma", i=True)
 
 	cmds.select("gem*")
-	cmds.hyperShade(a="test_lambert")
+	cmds.hyperShade(a="gem_shader")
 
 def getMagnitude(n):
 	return math.sqrt(sum(n[i]* n[i] for i in range(len(n))))
