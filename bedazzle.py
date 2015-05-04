@@ -57,7 +57,6 @@ def triangulateMesh(simplify):
 	for face_i in range(num_faces):		
 		face = cmds.select('triObj.f['+ str(face_i)+']')		
 		verts = getCorners(face_i)
-		# cmds.polyTriangulate('triObj')
 		if not isCoplanar(verts):
 			cmds.polyTriangulate('triObj.f['+ str(face_i)+']')
 
@@ -72,6 +71,26 @@ def getCorners(face_i):
 		cmds.select(vert_i)
 		corners.append(cmds.xform(query=True, translation=True, worldSpace=True))
 	return corners
+
+def getEdges(face_i):
+	e_verts = []
+	face = cmds.select('triObj.f['+ str(face_i)+']')
+	edges = cmds.polyListComponentConversion(te = True)
+	cmds.select(edges)
+	edges_f= cmds.filterExpand( ex=True, sm=32 )
+	for e in edges_f:
+		cmds.select(e)
+		verts = cmds.polyListComponentConversion(tv = True)
+		cmds.select(verts)
+		verts_f= cmds.filterExpand( ex=True, sm=31 )
+		pair = []
+		for vert_i in verts_f:
+			cmds.select(vert_i)
+			pair.append(cmds.xform(query=True, translation=True, worldSpace=True))
+		e_verts.append(pair)
+
+	return e_verts
+
 
 def isCoplanar(verts):
 	if len(verts) == 4:
@@ -97,6 +116,7 @@ def findPoints(gem_dim, padding):
 		bounds = cmds.polyEvaluate(bc = True)
 		normal = cmds.polyInfo(fn=True)
 		corners = getCorners(face_i)
+		edges = getEdges(face_i)
 
 		avg = getAvg(corners)
 		normal_f = normalize([float(i) for i in normal[0].split(':')[1].split()])
@@ -105,54 +125,54 @@ def findPoints(gem_dim, padding):
 		up = findUpVector(normal_f)
 		right = normalize(crossProd(normal_f, up))
 		
-		if checkWholeGem(avg, bounds, corners, gem_dim, up, right):
+		if checkWholeGem(avg, bounds, corners, gem_dim, up, right, edges):
 			points.append(avg)
 			normals.append(normal_f)
 
-			hit_bound = [0,0,0,0,0,0]
-			curr_pt = avg
-			count = 0
-			sub_count_goal = 0
+		hit_bound = [0,0,0,0,0,0]
+		curr_pt = avg
+		count = 0
+		sub_count_goal = 0
 
-			while sum(hit_bound)<6:		#while we haven't hit all 6 bounds, keep looking for points
+		while sum(hit_bound)<6:		#while we haven't hit all 6 bounds, keep looking for points
 
-				case = count % 4
-				sub_count = 0
+			case = count % 4
+			sub_count = 0
 
-				up_switch = False
+			up_switch = False
 
-				while sub_count < sub_count_goal:
-					temp = curr_pt
-					dir_vec = up
-					#going right
-					if case == 1:					
-						dir_vec = right
-					#going down
-					elif case == 2:
-						dir_vec = [-1*u for u in up]
-					#going left
-					elif case == 3:				
-						dir_vec = [-1*r for r in right]
+			while sub_count < sub_count_goal:
+				temp = curr_pt
+				dir_vec = up
+				#going right
+				if case == 1:					
+					dir_vec = right
+				#going down
+				elif case == 2:
+					dir_vec = [-1*u for u in up]
+				#going left
+				elif case == 3:				
+					dir_vec = [-1*r for r in right]
 
-					curr_pt =  [temp[p] + (gem_dim+padding)*dir_vec[p] for p in range(3)]
-					if checkWholeGem(curr_pt, bounds, corners, gem_dim, up, right):
-						points.append(curr_pt)
-						normals.append(normal_f)
+				curr_pt =  [temp[p] + (gem_dim+padding)*dir_vec[p] for p in range(3)]
+				if checkWholeGem(curr_pt, bounds, corners, gem_dim, up, right, edges):
+					points.append(curr_pt)
+					normals.append(normal_f)
 
-					sub_count +=1
+				sub_count +=1
+		
+				#check to see if we've hit any bounds
+				for i in range(3):
+					if curr_pt[i] <= bounds[i][0]: 
+						hit_bound[2*i] = 1
+					if curr_pt[i] >= bounds[i][1]:
+						hit_bound[2*i+1] = 1
 			
-					#check to see if we've hit any bounds
-					for i in range(3):
-						if curr_pt[i] <= bounds[i][0]: 
-							hit_bound[2*i] = 1
-						if curr_pt[i] >= bounds[i][1]:
-							hit_bound[2*i+1] = 1
-				
-				count += 1
+			count += 1
 
-				if case == 1 or case == 3:
-					sub_count_goal += 1
-					up_switch = not up_switch
+			if case == 1 or case == 3:
+				sub_count_goal += 1
+				up_switch = not up_switch
 
 
 
@@ -160,10 +180,10 @@ def findPoints(gem_dim, padding):
 	for c in range(len(points)):
 		placeGem(points[c],normals[c])
 
-def checkWholeGem(midpt, bounds, corners, gem_dim, up, right):
+def checkWholeGem(midpt, bounds, corners, gem_dim, up, right, edges):
 	pts_to_check = []
 	
-	if checkPt(midpt, bounds, corners):
+	if checkPt(midpt, bounds, corners, edges):
 		pts_to_check.append([midpt[p] + 0.5*gem_dim*up[p] for p in range(3)])			#could add a "sensitivity" variable that affects how far out this checks, could also add option of starting at corner or in the middle of face
 		pts_to_check.append([midpt[p] - 0.5*gem_dim*up[p] for p in range(3)])
 		pts_to_check.append([midpt[p] + 0.5*gem_dim*right[p] for p in range(3)])
@@ -172,7 +192,7 @@ def checkWholeGem(midpt, bounds, corners, gem_dim, up, right):
 		useSpot = True
 		for p in pts_to_check:
 			if useSpot:
-				useSpot = checkPt(p, bounds, corners)
+				useSpot = checkPt(p, bounds, corners, edges)
 		return useSpot
 
 	return False				
@@ -181,22 +201,29 @@ def checkWholeGem(midpt, bounds, corners, gem_dim, up, right):
 # check if point is within bounds of the face
 # adapted from:
 # http://bbs.dartmouth.edu/~fangq/MATH/download/source/Determining%20if%20a%20point%20lies%20on%20the%20interior%20of%20a%20polygon.htm
-def checkPt(pt, bounds, verts):
+def checkPt(pt, bounds, verts, edges):
 	#quick check that it's within the bounding box
 	for i in range(3):
 		if pt[i] < bounds[i][0] or pt[i] > bounds[i][1]:
 			return False
 
  	if len(verts)>3:		#should support verts>4?
- 		nprint = False
- 		# if not checkTriangle(verts[:3], pt, False) and not checkTriangle(verts[1:], pt, False):
- 		# 	print pt
- 		# 	nprint = True
-   		return (checkTriangle(verts[:3], pt, nprint) or checkTriangle(verts[1:], pt, nprint))
+ 		if makeDiag(verts[0], verts[3], edges):
+   			return (checkTriangle(verts[:3], pt) or checkTriangle(verts[1:], pt))
+   		if makeDiag(verts[1], verts[3], edges):
+   			return (checkTriangle(verts[:3], pt) or checkTriangle([verts[0],verts[2],verts[3]], pt))
+   		if makeDiag(verts[2], verts[3], edges):
+   			return (checkTriangle(verts[:3], pt) or checkTriangle([verts[0],verts[1],verts[3]], pt))
 
-   	return checkTriangle(verts, pt, False)
+   	return checkTriangle(verts, pt)
 
-def checkTriangle(verts, pt, nprint):
+def makeDiag(v1, v2, edges):
+	for e in edges:
+		if e == [v1, v2] or e == [v2,v1]:
+			return False
+	return True
+
+def checkTriangle(verts, pt):
 	anglesum = 0
 	costheta = 0
 
@@ -204,12 +231,7 @@ def checkTriangle(verts, pt, nprint):
    	for i in range(len(verts)):
 		p1 = [verts[i][j]- pt[j] for j in range(3)]
 		p2 = [verts[(i+1)%len(verts)][j]- pt[j] for j in range(3)]
-		if nprint:
-			print " "
-			print "verts1: " + str(verts[i])
-			print "verts2: " + str(verts[(i+1)%len(verts)])
-			# print "costheta: " + str(math.acos(costheta))
-
+		
 		m1 = getMagnitude(p1)
 		m2 = getMagnitude(p2)
 
@@ -224,17 +246,9 @@ def checkTriangle(verts, pt, nprint):
 
 		costheta = sum([p1[i]*p2[i] for i in range(3)])
 		costheta = min(1.0,max(costheta,-1.0))
-		# if nprint:
-		# 	print "costheta" + str(costheta)
-		# 	print "acos(costheta)" + str(math.acos(costheta))
 
 		anglesum += math.acos(costheta)
 
-	# if nprint:
-	# 	print " "
-	# 	print "angle sum: " + str(anglesum)
-	# 	print "needed : " + str(2*math.pi-anglesum)
-	# 	print "--"
 	#angle sum approx equal to 2*pi
 	if math.fabs(2*math.pi-anglesum) <= eps:
 		return True
@@ -309,30 +323,3 @@ def getAvg(corners):
 		avg[2] += p[2]/len(corners)
 		
 	return avg
-
-
-# def getSortedPoints(verts, bounds, right):
-# 	angles = []
-# 	angles.append((verts[0], 0))
-# 	axis = normalize([verts[0][i]-bounds[i][0] for i in range(3)])
-
-# 	#build list of tuples where x[0] = index in verts list, x[1] = angle with anchor
-# 	for v in verts[1:]:
-# 		a = getAngle(v, axis, bounds)
-# 		angles.append((v, a))
- 
-# 	#sort by angle 
-# 	sorted_angles = sorted(angles, key = lambda x: x[1])
-# 	print sorted_angles
-# 	return [x[0] for x in sorted_angles]
-
-# def getAngle(pt, axis, bounds):
-# 	vec = [pt[i]-bounds[i][0] for i in range(3)]
-
-# 	if vec == [0.0,0.0,0.0]:
-# 		return 0
-
-# 	vec = normalize(vec)
-# 	#take dot prod
-# 	dot_prod = min(1,max(sum([vec[i]*axis[i] for i in range(3)]),-1))
-# 	return math.acos(dot_prod)
