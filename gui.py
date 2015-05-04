@@ -1,4 +1,4 @@
-from bedazzle import *
+# from bedazzle import *
 import maya.cmds as cmds
 
 """Mostly copied from Zeno Pelgrims' water drop generator gui
@@ -30,11 +30,11 @@ def windowUI(*args):
 	
 	# size
 	cmds.rowColumnLayout(w=380)
-	cmds.floatSliderGrp("size", l="Gem Size: ", v=.25, min=0.01, max=1.0, f=True,w=370)		#make real max bigger
+	cmds.floatSliderGrp("size", l="Gem Size: ", v=.25, min=0.001, max=1.0, f=True,w=370,pre=3)		#make real max bigger
 
 	# padding
 	cmds.rowColumnLayout(w=380)
-	cmds.floatSliderGrp("padding", l="Spacing: ", v=0, min=0, max=1.0, f=True,w=370)	#make real max bigger
+	cmds.floatSliderGrp("padding", l="Spacing: ", v=0, min=0.0, max=1.0, f=True,w=370,pre=3)	#make real max bigger
 	
 	#shade
 	cmds.checkBox("shaderCheckBox", l='Apply a simple shader', value=False)
@@ -61,7 +61,5 @@ def bedazzleButton(*args):
 	shade = cmds. checkBox("shaderCheckBox", query=True, v=True)
 
 	success = run(reduceMesh, size, padding, shade)
-	if not success:
 		
-
 windowUI()

@@ -8,10 +8,10 @@ def run(simplify, size, padding,shade):
 		return False
 	makeGem(size)
 	triangulateMesh(simplify)
-	findPoints(size+padding)
+	findPoints(size,padding)
 
 	cmds.delete('gem')	#need to account for running script more than once maybe
-	cmds.delete('triObj')
+	# cmds.delete('triObj')
 	cmds.group("gem*", name = "gems")
 
 	if shade:
@@ -55,9 +55,9 @@ def triangulateMesh(simplify):
 	for face_i in range(num_faces):		
 		face = cmds.select('triObj.f['+ str(face_i)+']')		
 		verts = getCorners(face_i)
-
-		if not isCoplanar(verts):
-			cmds.polyTriangulate('triObj.f['+ str(face_i)+']')
+		cmds.polyTriangulate('triObj')
+		# if not isCoplanar(verts):
+		# 	cmds.polyTriangulate('triObj.f['+ str(face_i)+']')
 
 def getCorners(face_i):
 	face = cmds.select('triObj.f['+ str(face_i)+']')
@@ -77,16 +77,16 @@ def isCoplanar(verts):
 		v2 = [verts[1][i] - verts[0][i] for i in range(0,3)]
 		v3 = [verts[3][i] - verts[2][i] for i in range(0,3)]
 		v2crossv3 = crossProd(v2,v3)
-		return math.fabs(sum([v1[i] * v2crossv3[i] for i in range(0,3)])) <= .001
+		return math.fabs(sum([v1[i] * v2crossv3[i] for i in range(0,3)])) <= .01
 	return False
 
-def findPoints(gem_dim):
+def findPoints(gem_dim, padding):
 	points = []
 	normals = []
 	
 	cmds.select('triObj')
 	num_faces = cmds.polyEvaluate('triObj', f=True)	
-	print "Starting to iterate over faces..."
+	print "Starting to iterate over " + str(num_faces) + " faces..."
 	for face_i in range(num_faces):
 		if ((num_faces - face_i) % 5 == 0):
 			print "Approximately " + str(num_faces - face_i) + " faces remaining...."
@@ -98,85 +98,81 @@ def findPoints(gem_dim):
 
 		avg = getAvg(corners)
 		normal_f = normalize([float(i) for i in normal[0].split(':')[1].split()])
-		
-		points.append(avg)
-		normals.append(normal_f)
 
-		hit_bound = [0,0,0,0,0,0]
-		curr_pt = avg
-		
-		#finding vector perpendicular to normal that lies in the plane between the normal and y axis (0,1,0)
-		#this can be simplified if it works
-		#unless normal is already the y axis, then use the z axis as "up"
-		neg_n = normalize([-1*n for n in normal_f])
-		if normal_f == [0.0,1.0,0.0] or normal_f == [0.0,-1.0,0.0]:
-			up = [-1*neg_n[2]*neg_n[0], -1*neg_n[2]*neg_n[1],1-neg_n[2]*neg_n[2]]
-		else:
-			up = [-1*neg_n[1]*neg_n[0], 1-neg_n[1]*neg_n[1],-1*neg_n[1]*neg_n[2]]
-
-		#vectors for spiraling
-		up = normalize(up)
+		#vectors for spiraling				
+		up = findUpVector(normal_f)
 		right = normalize(crossProd(normal_f, up))
+		
+		if checkWholeGem(avg, bounds, corners, gem_dim, up, right):
+			points.append(avg)
+			normals.append(normal_f)
 
-		count = 0
-		sub_count_goal = 0
+			hit_bound = [0,0,0,0,0,0]
+			curr_pt = avg
+			count = 0
+			sub_count_goal = 0
 
-		while sum(hit_bound)<6:		#while we haven't hit all 6 bounds, keep looking for points
+			while sum(hit_bound)<6:		#while we haven't hit all 6 bounds, keep looking for points
 
-			case = count % 4
-			sub_count = 0
+				case = count % 4
+				sub_count = 0
 
-			up_switch = False
+				up_switch = False
 
-			while sub_count < sub_count_goal:
-				temp = curr_pt
-				dir_vec = up
-				#going right
-				if case == 1:					
-					dir_vec = right
-				#going down
-				elif case == 2:
-					dir_vec = [-1*u for u in up]
-				#going left
-				elif case == 3:				
-					dir_vec = [-1*r for r in right]
+				while sub_count < sub_count_goal:
+					temp = curr_pt
+					dir_vec = up
+					#going right
+					if case == 1:					
+						dir_vec = right
+					#going down
+					elif case == 2:
+						dir_vec = [-1*u for u in up]
+					#going left
+					elif case == 3:				
+						dir_vec = [-1*r for r in right]
 
-				curr_pt =  [temp[p] + gem_dim*dir_vec[p] for p in range(3)]
-
-				if checkPt(curr_pt, bounds, corners):
-					pts_to_check = []
-					pts_to_check.append([curr_pt[p] + 0.5*gem_dim*up[p] for p in range(3)])
-					pts_to_check.append([curr_pt[p] - 0.5*gem_dim*up[p] for p in range(3)])
-					pts_to_check.append([curr_pt[p] + 0.5*gem_dim*right[p] for p in range(3)])
-					pts_to_check.append([curr_pt[p] - 0.5*gem_dim*right[p] for p in range(3)])
-
-					useSpot = True
-					for p in pts_to_check:
-						if useSpot:
-							useSpot = checkPt(p, bounds, corners)
-
-					if useSpot:
+					curr_pt =  [temp[p] + (gem_dim+padding)*dir_vec[p] for p in range(3)]
+					if checkWholeGem(curr_pt, bounds, corners, gem_dim, up, right):
 						points.append(curr_pt)
 						normals.append(normal_f)
 
-				sub_count +=1
+					sub_count +=1
 			
-			count += 1
+					#check to see if we've hit any bounds
+					for i in range(3):
+						if curr_pt[i] <= bounds[i][0]: 
+							hit_bound[2*i] = 1
+						if curr_pt[i] >= bounds[i][1]:
+							hit_bound[2*i+1] = 1
+				
+				count += 1
 
-			if case == 1 or case == 3:
-				sub_count_goal += 1
-				up_switch = not up_switch
+				if case == 1 or case == 3:
+					sub_count_goal += 1
+					up_switch = not up_switch
 
-			#check to see if we've hit any bounds
-			for i in range(3):
-				if curr_pt[i] <= bounds[i][0]: 
-					hit_bound[2*i] = 1
-				if curr_pt[i] >= bounds[i][1]:
-					hit_bound[2*i+1] = 1
+
+
 
 	print "Placing " + str(len(points)) + " gems..."
 	for c in range(len(points)):
 		placeGem(points[c],normals[c])
+
+def checkWholeGem(midpt, bounds, corners, gem_dim, up, right):
+	pts_to_check = []
+	if checkPt(midpt, bounds, corners):
+		pts_to_check.append([midpt[p] + 0.5*gem_dim*up[p] for p in range(3)])			#could add a "sensitivity" variable that affects how far out this checks
+		pts_to_check.append([midpt[p] - 0.5*gem_dim*up[p] for p in range(3)])
+		pts_to_check.append([midpt[p] + 0.5*gem_dim*right[p] for p in range(3)])
+		pts_to_check.append([midpt[p] - 0.5*gem_dim*right[p] for p in range(3)])
+
+		useSpot = True
+		for p in pts_to_check:
+			if useSpot:
+				useSpot = checkPt(p, bounds, corners)
+		return useSpot
+	return False				
 
 
 # check if point is within bounds of the face
@@ -214,7 +210,8 @@ def checkPt(pt, bounds, verts):
 
 	#angle sum approx equal to 2*pi-- should probably change this to be an epsilon value
 
-	if anglesum >= 1.95*math.pi and anglesum <= 2.05*math.pi or (len(verts) > 3 and anglesum <= 3.05*math.pi):
+	# if anglesum >= 1.95*math.pi and anglesum <= 2.05*math.pi or (len(verts) > 3 and anglesum <= 3.05*math.pi):
+	if math.fabs(2*math.pi-anglesum) <= eps:# or (len(verts) > 3 and math.fabs(3*math.pi-anglesum) <= 5):
 		#not sure why quads need greater angle sum value. this seems wrong.
 		return True
 	return False
@@ -234,6 +231,17 @@ def throwShade():
 
 	cmds.select("gem*")
 	cmds.hyperShade(a="gem_shader")
+
+def findUpVector(normal_f):
+	#finding vector perpendicular to normal that lies in the plane between the normal and y axis (0,1,0)
+	#this can be simplified if it works
+	#unless normal is already the y axis, then use the z axis as "up"
+	neg_n = normalize([-1*n for n in normal_f])
+	if normal_f == [0.0,1.0,0.0] or normal_f == [0.0,-1.0,0.0]:
+		up = [-1*neg_n[2]*neg_n[0], -1*neg_n[2]*neg_n[1],1-neg_n[2]*neg_n[2]]
+	else:
+		up = [-1*neg_n[1]*neg_n[0], 1-neg_n[1]*neg_n[1],-1*neg_n[1]*neg_n[2]]
+	return normalize(up)
 
 def getMagnitude(n):
 	return math.sqrt(sum(n[i]* n[i] for i in range(len(n))))
