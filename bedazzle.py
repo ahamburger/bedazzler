@@ -12,13 +12,15 @@ def run(simplify, size, padding,shade):
 
 	cmds.delete('gem')	#need to account for running script more than once maybe
 	# cmds.delete('triObj')
+
+	# if cmds.objExists('gem*'):
 	cmds.group("gem*", name = "gems")
 
 	if shade:
 		throwShade()
 	return True
 
-#return first object in the scene (for now) except for gemstones
+#does not work if changing base object to run script again
 def pickBaseObject(selectedObject):
 	if len(selectedObject) == 0:
 		cmds.textField("baseObject", e=True, tx="Please select an object.")
@@ -31,7 +33,7 @@ def pickBaseObject(selectedObject):
 		baseObject = selectedObject[0]
 		cmds.textField("baseObject", e=True, tx=baseObject)
 
-#make gem geometry (one for now)
+#make gem geometry
 def makeGem(size):
 	#import gem
 	if not cmds.objExists('gem'):
@@ -55,9 +57,9 @@ def triangulateMesh(simplify):
 	for face_i in range(num_faces):		
 		face = cmds.select('triObj.f['+ str(face_i)+']')		
 		verts = getCorners(face_i)
-		cmds.polyTriangulate('triObj')
-		# if not isCoplanar(verts):
-		# 	cmds.polyTriangulate('triObj.f['+ str(face_i)+']')
+		# cmds.polyTriangulate('triObj')
+		if not isCoplanar(verts):
+			cmds.polyTriangulate('triObj.f['+ str(face_i)+']')
 
 def getCorners(face_i):
 	face = cmds.select('triObj.f['+ str(face_i)+']')
@@ -103,7 +105,7 @@ def findPoints(gem_dim, padding):
 		up = findUpVector(normal_f)
 		right = normalize(crossProd(normal_f, up))
 		
-		if checkWholeGem(avg, bounds, corners, gem_dim, up, right):
+		if checkWholeGem(avg, bounds, corners, gem_dim, up, right,avg):
 			points.append(avg)
 			normals.append(normal_f)
 
@@ -133,7 +135,7 @@ def findPoints(gem_dim, padding):
 						dir_vec = [-1*r for r in right]
 
 					curr_pt =  [temp[p] + (gem_dim+padding)*dir_vec[p] for p in range(3)]
-					if checkWholeGem(curr_pt, bounds, corners, gem_dim, up, right):
+					if checkWholeGem(curr_pt, bounds, corners, gem_dim, up, right,avg):
 						points.append(curr_pt)
 						normals.append(normal_f)
 
@@ -159,10 +161,10 @@ def findPoints(gem_dim, padding):
 	for c in range(len(points)):
 		placeGem(points[c],normals[c])
 
-def checkWholeGem(midpt, bounds, corners, gem_dim, up, right):
+def checkWholeGem(midpt, bounds, corners, gem_dim, up, right, face_center):
 	pts_to_check = []
-	if checkPt(midpt, bounds, corners):
-		pts_to_check.append([midpt[p] + 0.5*gem_dim*up[p] for p in range(3)])			#could add a "sensitivity" variable that affects how far out this checks
+	if checkPt(midpt, bounds, corners,face_center):
+		pts_to_check.append([midpt[p] + 0.5*gem_dim*up[p] for p in range(3)])			#could add a "sensitivity" variable that affects how far out this checks, could also add option of starting at corner or in the middle of face
 		pts_to_check.append([midpt[p] - 0.5*gem_dim*up[p] for p in range(3)])
 		pts_to_check.append([midpt[p] + 0.5*gem_dim*right[p] for p in range(3)])
 		pts_to_check.append([midpt[p] - 0.5*gem_dim*right[p] for p in range(3)])
@@ -170,7 +172,7 @@ def checkWholeGem(midpt, bounds, corners, gem_dim, up, right):
 		useSpot = True
 		for p in pts_to_check:
 			if useSpot:
-				useSpot = checkPt(p, bounds, corners)
+				useSpot = checkPt(p, bounds, corners,face_center)
 		return useSpot
 	return False				
 
@@ -178,7 +180,7 @@ def checkWholeGem(midpt, bounds, corners, gem_dim, up, right):
 # check if point is within bounds of the face
 # adapted from:
 # http://bbs.dartmouth.edu/~fangq/MATH/download/source/Determining%20if%20a%20point%20lies%20on%20the%20interior%20of%20a%20polygon.htm
-def checkPt(pt, bounds, verts):
+def checkPt(pt, bounds, verts_unsorted, face_center):
 	#want to check all extremes of gemstone. Add this once have better idea of gemstone shape
 
 	#quick check that it's within the bounding box
@@ -189,6 +191,11 @@ def checkPt(pt, bounds, verts):
 	costheta = 0
 
    	eps = 0.000001
+
+   	verts = verts_unsorted
+ 	if len(verts_unsorted)>3:
+   		verts = getSortedPoints(face_center, verts, bounds)
+
    	for i in range(len(verts)):
 		p1 = [0,0,0]
 		p2 = [0,0,0]
@@ -204,14 +211,16 @@ def checkPt(pt, bounds, verts):
 		if (m1*m2 <= eps):
 			return True
 
-		costheta = (p1[0]*p2[0] + p1[1]*p2[1] + p1[2]*p2[2])/(m1*m2)
+		p1 = normalize(p1)
+		p2 = normalize(p2)
+
+		costheta = sum([p1[i]*p2[i] for i in range(3)])
 		costheta = min(1,max(costheta,-1))
 		anglesum += math.acos(costheta)
 
 	#angle sum approx equal to 2*pi-- should probably change this to be an epsilon value
 
-	# if anglesum >= 1.95*math.pi and anglesum <= 2.05*math.pi or (len(verts) > 3 and anglesum <= 3.05*math.pi):
-	if math.fabs(2*math.pi-anglesum) <= eps:# or (len(verts) > 3 and math.fabs(3*math.pi-anglesum) <= 5):
+	if math.fabs(2*math.pi-anglesum) <= eps:
 		#not sure why quads need greater angle sum value. this seems wrong.
 		return True
 	return False
@@ -284,3 +293,24 @@ def getAvg(corners):
 		avg[2] += p[2]/len(corners)
 
 	return avg
+
+
+def getSortedPoints(center, verts, bounds):
+	angles = []
+	angles.append((verts[0], 0))
+	axis = normalize([verts[0][i]-center[i] for i in range(3)])
+
+	#build list of tuples where x[0] = index in verts list, x[1] = angle with anchor
+	for v in verts[1:]:
+		angle_with_center = getAngle(center, v, axis)
+		angles.append((v, angle_with_center))
+ 
+	#sort by angle 
+	sorted_angles = sorted(angles, key = lambda x: x[1])
+	return [x[0] for x in sorted_angles]
+
+def getAngle(center, pt, axis):
+	vec = normalize([pt[i]-center[i] for i in range(3)])
+	#take dot prod
+	dot_prod = min(1,max(sum([vec[i]*axis[i] for i in range(3)]),-1))
+	return math.acos(dot_prod)
