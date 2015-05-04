@@ -105,7 +105,7 @@ def findPoints(gem_dim, padding):
 		up = findUpVector(normal_f)
 		right = normalize(crossProd(normal_f, up))
 		
-		if checkWholeGem(avg, bounds, corners, gem_dim, up, right,avg):
+		if checkWholeGem(avg, bounds, corners, gem_dim, up, right):
 			points.append(avg)
 			normals.append(normal_f)
 
@@ -135,7 +135,7 @@ def findPoints(gem_dim, padding):
 						dir_vec = [-1*r for r in right]
 
 					curr_pt =  [temp[p] + (gem_dim+padding)*dir_vec[p] for p in range(3)]
-					if checkWholeGem(curr_pt, bounds, corners, gem_dim, up, right,avg):
+					if checkWholeGem(curr_pt, bounds, corners, gem_dim, up, right):
 						points.append(curr_pt)
 						normals.append(normal_f)
 
@@ -156,14 +156,14 @@ def findPoints(gem_dim, padding):
 
 
 
-
 	print "Placing " + str(len(points)) + " gems..."
 	for c in range(len(points)):
 		placeGem(points[c],normals[c])
 
-def checkWholeGem(midpt, bounds, corners, gem_dim, up, right, face_center):
+def checkWholeGem(midpt, bounds, corners, gem_dim, up, right):
 	pts_to_check = []
-	if checkPt(midpt, bounds, corners,face_center):
+	
+	if checkPt(midpt, bounds, corners):
 		pts_to_check.append([midpt[p] + 0.5*gem_dim*up[p] for p in range(3)])			#could add a "sensitivity" variable that affects how far out this checks, could also add option of starting at corner or in the middle of face
 		pts_to_check.append([midpt[p] - 0.5*gem_dim*up[p] for p in range(3)])
 		pts_to_check.append([midpt[p] + 0.5*gem_dim*right[p] for p in range(3)])
@@ -172,57 +172,73 @@ def checkWholeGem(midpt, bounds, corners, gem_dim, up, right, face_center):
 		useSpot = True
 		for p in pts_to_check:
 			if useSpot:
-				useSpot = checkPt(p, bounds, corners,face_center)
+				useSpot = checkPt(p, bounds, corners)
 		return useSpot
+
 	return False				
 
 
 # check if point is within bounds of the face
 # adapted from:
 # http://bbs.dartmouth.edu/~fangq/MATH/download/source/Determining%20if%20a%20point%20lies%20on%20the%20interior%20of%20a%20polygon.htm
-def checkPt(pt, bounds, verts_unsorted, face_center):
-	#want to check all extremes of gemstone. Add this once have better idea of gemstone shape
-
+def checkPt(pt, bounds, verts):
 	#quick check that it's within the bounding box
 	for i in range(3):
 		if pt[i] < bounds[i][0] or pt[i] > bounds[i][1]:
 			return False
+
+ 	if len(verts)>3:		#should support verts>4?
+ 		nprint = False
+ 		# if not checkTriangle(verts[:3], pt, False) and not checkTriangle(verts[1:], pt, False):
+ 		# 	print pt
+ 		# 	nprint = True
+   		return (checkTriangle(verts[:3], pt, nprint) or checkTriangle(verts[1:], pt, nprint))
+
+   	return checkTriangle(verts, pt, False)
+
+def checkTriangle(verts, pt, nprint):
 	anglesum = 0
 	costheta = 0
 
    	eps = 0.000001
-
-   	verts = verts_unsorted
- 	if len(verts_unsorted)>3:
-   		verts = getSortedPoints(face_center, verts, bounds)
-
    	for i in range(len(verts)):
-		p1 = [0,0,0]
-		p2 = [0,0,0]
-		p1[0] = verts[i][0] - pt[0]
-		p1[1] = verts[i][1] - pt[1]
-		p1[2] = verts[i][2] - pt[2]
-		p2[0] = verts[(i+1)%len(verts)][0] - pt[0]
-		p2[1] = verts[(i+1)%len(verts)][1] - pt[1]
-		p2[2] = verts[(i+1)%len(verts)][2] - pt[2]
+		p1 = [verts[i][j]- pt[j] for j in range(3)]
+		p2 = [verts[(i+1)%len(verts)][j]- pt[j] for j in range(3)]
+		if nprint:
+			print " "
+			print "verts1: " + str(verts[i])
+			print "verts2: " + str(verts[(i+1)%len(verts)])
+			# print "costheta: " + str(math.acos(costheta))
 
 		m1 = getMagnitude(p1)
 		m2 = getMagnitude(p2)
+
 		if (m1*m2 <= eps):
 			return True
 
 		p1 = normalize(p1)
 		p2 = normalize(p2)
 
+		if [-1*p for p in p1] == p2:
+			return True
+
 		costheta = sum([p1[i]*p2[i] for i in range(3)])
-		costheta = min(1,max(costheta,-1))
+		costheta = min(1.0,max(costheta,-1.0))
+		# if nprint:
+		# 	print "costheta" + str(costheta)
+		# 	print "acos(costheta)" + str(math.acos(costheta))
+
 		anglesum += math.acos(costheta)
 
-	#angle sum approx equal to 2*pi-- should probably change this to be an epsilon value
-
+	# if nprint:
+	# 	print " "
+	# 	print "angle sum: " + str(anglesum)
+	# 	print "needed : " + str(2*math.pi-anglesum)
+	# 	print "--"
+	#angle sum approx equal to 2*pi
 	if math.fabs(2*math.pi-anglesum) <= eps:
-		#not sure why quads need greater angle sum value. this seems wrong.
 		return True
+
 	return False
 
 
@@ -285,32 +301,38 @@ def getRotAngle(n):
 	return new_ret
 
 def getAvg(corners):
-	avg=[0,0,0]
+	avg=[0.0,0.0,0.0]
 
 	for p in corners:
 		avg[0] += p[0]/len(corners)
 		avg[1] += p[1]/len(corners)
 		avg[2] += p[2]/len(corners)
-
+		
 	return avg
 
 
-def getSortedPoints(center, verts, bounds):
-	angles = []
-	angles.append((verts[0], 0))
-	axis = normalize([verts[0][i]-center[i] for i in range(3)])
+# def getSortedPoints(verts, bounds, right):
+# 	angles = []
+# 	angles.append((verts[0], 0))
+# 	axis = normalize([verts[0][i]-bounds[i][0] for i in range(3)])
 
-	#build list of tuples where x[0] = index in verts list, x[1] = angle with anchor
-	for v in verts[1:]:
-		angle_with_center = getAngle(center, v, axis)
-		angles.append((v, angle_with_center))
+# 	#build list of tuples where x[0] = index in verts list, x[1] = angle with anchor
+# 	for v in verts[1:]:
+# 		a = getAngle(v, axis, bounds)
+# 		angles.append((v, a))
  
-	#sort by angle 
-	sorted_angles = sorted(angles, key = lambda x: x[1])
-	return [x[0] for x in sorted_angles]
+# 	#sort by angle 
+# 	sorted_angles = sorted(angles, key = lambda x: x[1])
+# 	print sorted_angles
+# 	return [x[0] for x in sorted_angles]
 
-def getAngle(center, pt, axis):
-	vec = normalize([pt[i]-center[i] for i in range(3)])
-	#take dot prod
-	dot_prod = min(1,max(sum([vec[i]*axis[i] for i in range(3)]),-1))
-	return math.acos(dot_prod)
+# def getAngle(pt, axis, bounds):
+# 	vec = [pt[i]-bounds[i][0] for i in range(3)]
+
+# 	if vec == [0.0,0.0,0.0]:
+# 		return 0
+
+# 	vec = normalize(vec)
+# 	#take dot prod
+# 	dot_prod = min(1,max(sum([vec[i]*axis[i] for i in range(3)]),-1))
+# 	return math.acos(dot_prod)
