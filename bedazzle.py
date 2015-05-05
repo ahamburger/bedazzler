@@ -60,6 +60,176 @@ def triangulateMesh(simplify):
 		if not isCoplanar(verts):
 			cmds.polyTriangulate('triObj.f['+ str(face_i)+']')
 
+def findPoints(gem_dim, padding):
+	points = []
+	normals = []
+	
+	cmds.select('triObj')
+	num_faces = cmds.polyEvaluate('triObj', f=True)	
+	print "Starting to iterate over " + str(num_faces) + " faces..."
+	for face_i in range(num_faces):
+		if ((num_faces - face_i) % 5 == 0):
+			print "Approximately " + str(num_faces - face_i) + " faces remaining...."
+		
+		cmds.select('triObj.f['+ str(face_i)+']')
+		bounds = cmds.polyEvaluate(bc = True)
+		normal = cmds.polyInfo(fn=True)
+		corners = getCorners(face_i)
+		edges = getEdges(face_i)
+
+		avg = getAvg(corners)
+		normal_f = normalize([float(i) for i in normal[0].split(':')[1].split()])
+
+		#vectors for spiraling				
+		up = findUpVector(normal_f)
+		right = normalize(crossProd(normal_f, up))
+		
+		if checkWholeGem(avg, bounds, corners, gem_dim, up, right, edges):
+			points.append(avg)
+			normals.append(normal_f)
+
+			hit_bound = [0,0,0,0,0,0]
+			curr_pt = avg
+			count = 0
+			sub_count_goal = 0
+			
+			#check to see if we've hit any bounds
+			for i in range(3):
+				if curr_pt[i] <= bounds[i][0] + .00001: 
+					hit_bound[2*i] = 1
+				if curr_pt[i] >= bounds[i][1]- .00001:
+					hit_bound[2*i+1] = 1
+
+			while sum(hit_bound)<6:		#while we haven't hit all 6 bounds, keep looking for points
+				case = count % 4
+				sub_count = 0
+
+				up_switch = False
+
+				while sub_count < sub_count_goal:
+					temp = curr_pt
+					dir_vec = up
+					#going right
+					if case == 1:					
+						dir_vec = right
+					#going down
+					elif case == 2:
+						dir_vec = [-1*u for u in up]
+					#going left
+					elif case == 3:				
+						dir_vec = [-1*r for r in right]
+
+					curr_pt =  [temp[p] + (gem_dim+padding)*dir_vec[p] for p in range(3)]
+					if checkWholeGem(curr_pt, bounds, corners, gem_dim, up, right, edges):
+						points.append(curr_pt)
+						normals.append(normal_f)
+
+					sub_count +=1
+			
+					#check to see if we've hit any bounds
+					for i in range(3):
+						if curr_pt[i] <= bounds[i][0]+ .00001: 
+							hit_bound[2*i] = 1
+						if curr_pt[i] >= bounds[i][1]- .00001:
+							hit_bound[2*i+1] = 1
+				
+				count += 1
+
+				if case == 1 or case == 3:
+					sub_count_goal += 1
+					up_switch = not up_switch
+
+
+
+	print "Placing " + str(len(points)) + " gems..."
+	for c in range(len(points)):
+		placeGem(points[c],normals[c])
+
+def checkWholeGem(midpt, bounds, corners, gem_dim, up, right, edges):
+	pts_to_check = []
+	
+	if checkPt(midpt, bounds, corners, edges):
+		pts_to_check.append([midpt[p] + 0.5*gem_dim*up[p] for p in range(3)])			#could add a "sensitivity" variable that affects how far out this checks, could also add option of starting at corner or in the middle of face
+		pts_to_check.append([midpt[p] - 0.5*gem_dim*up[p] for p in range(3)])
+		pts_to_check.append([midpt[p] + 0.5*gem_dim*right[p] for p in range(3)])
+		pts_to_check.append([midpt[p] - 0.5*gem_dim*right[p] for p in range(3)])
+
+		useSpot = True
+		for p in pts_to_check:
+			if useSpot:
+				useSpot = checkPt(p, bounds, corners, edges)
+		return useSpot
+
+	return False				
+
+
+# check if point is within bounds of the face
+
+def checkPt(pt, bounds, verts, edges):
+	#quick check that it's within the bounding box
+	for i in range(3):
+		if pt[i] < bounds[i][0] or pt[i] > bounds[i][1]:
+			return False
+
+ 	if len(verts)>3:		#should support verts>4?
+ 		if makeDiag(verts[0], verts[3], edges):
+   			return (checkTriangle(verts[:3], pt) or checkTriangle(verts[1:], pt))
+   		if makeDiag(verts[1], verts[3], edges):
+   			return (checkTriangle(verts[:3], pt) or checkTriangle([verts[0],verts[2],verts[3]], pt))
+   		if makeDiag(verts[2], verts[3], edges):
+   			return (checkTriangle(verts[:3], pt) or checkTriangle([verts[0],verts[1],verts[3]], pt))
+
+   	return checkTriangle(verts, pt)
+
+# adapted from:
+# http://bbs.dartmouth.edu/~fangq/MATH/download/source/Determining%20if%20a%20point%20lies%20on%20the%20interior%20of%20a%20polygon.htm
+def checkTriangle(verts, pt):
+	anglesum = 0
+	costheta = 0
+
+   	eps = 0.000001
+   	for i in range(len(verts)):
+		p1 = [verts[i][j]- pt[j] for j in range(3)]
+		p2 = [verts[(i+1)%len(verts)][j]- pt[j] for j in range(3)]
+		
+		m1 = getMagnitude(p1)
+		m2 = getMagnitude(p2)
+
+		if (m1*m2 <= eps):
+			return True
+
+		p1 = normalize(p1)
+		p2 = normalize(p2)
+
+		if [-1*p for p in p1] == p2:
+			return True
+
+		costheta = sum([p1[i]*p2[i] for i in range(3)])
+		costheta = min(1.0,max(costheta,-1.0))
+
+		anglesum += math.acos(costheta)
+
+	#angle sum approx equal to 2*pi
+	if math.fabs(2*math.pi-anglesum) <= eps:
+		return True
+	return False
+
+
+def placeGem(pt, norm):
+	cmds.select('gem')
+	cmds.instance()
+
+	r_angle = getRotAngle(norm)
+	cmds.rotate(r_angle[0],r_angle[1],r_angle[2], r = True)
+	cmds.move(pt[0], pt[1], pt[2])
+
+def throwShade():
+	if not cmds.objExists('gem_shader'):
+		cmds.file("shader.ma", i=True)
+
+	cmds.select("gem*")
+	cmds.hyperShade(a="gem_shader")
+
 def getCorners(face_i):
 	face = cmds.select('triObj.f['+ str(face_i)+']')
 	verts = cmds.polyListComponentConversion(tv = True)
@@ -91,7 +261,6 @@ def getEdges(face_i):
 
 	return e_verts
 
-
 def isCoplanar(verts):
 	if len(verts) == 4:
 		v1 = [verts[2][i] - verts[0][i] for i in range(0,3)]
@@ -100,176 +269,6 @@ def isCoplanar(verts):
 		v2crossv3 = crossProd(v2,v3)
 		return math.fabs(sum([v1[i] * v2crossv3[i] for i in range(0,3)])) <= .01
 	return False
-
-def findPoints(gem_dim, padding):
-	points = []
-	normals = []
-	
-	cmds.select('triObj')
-	num_faces = cmds.polyEvaluate('triObj', f=True)	
-	print "Starting to iterate over " + str(num_faces) + " faces..."
-	for face_i in range(num_faces):
-		if ((num_faces - face_i) % 5 == 0):
-			print "Approximately " + str(num_faces - face_i) + " faces remaining...."
-		
-		cmds.select('triObj.f['+ str(face_i)+']')
-		bounds = cmds.polyEvaluate(bc = True)
-		normal = cmds.polyInfo(fn=True)
-		corners = getCorners(face_i)
-		edges = getEdges(face_i)
-
-		avg = getAvg(corners)
-		normal_f = normalize([float(i) for i in normal[0].split(':')[1].split()])
-
-		#vectors for spiraling				
-		up = findUpVector(normal_f)
-		right = normalize(crossProd(normal_f, up))
-		
-		if checkWholeGem(avg, bounds, corners, gem_dim, up, right, edges):
-			points.append(avg)
-			normals.append(normal_f)
-
-		hit_bound = [0,0,0,0,0,0]
-		curr_pt = avg
-		count = 0
-		sub_count_goal = 0
-
-		while sum(hit_bound)<6:		#while we haven't hit all 6 bounds, keep looking for points
-
-			case = count % 4
-			sub_count = 0
-
-			up_switch = False
-
-			while sub_count < sub_count_goal:
-				temp = curr_pt
-				dir_vec = up
-				#going right
-				if case == 1:					
-					dir_vec = right
-				#going down
-				elif case == 2:
-					dir_vec = [-1*u for u in up]
-				#going left
-				elif case == 3:				
-					dir_vec = [-1*r for r in right]
-
-				curr_pt =  [temp[p] + (gem_dim+padding)*dir_vec[p] for p in range(3)]
-				if checkWholeGem(curr_pt, bounds, corners, gem_dim, up, right, edges):
-					points.append(curr_pt)
-					normals.append(normal_f)
-
-				sub_count +=1
-		
-				#check to see if we've hit any bounds
-				for i in range(3):
-					if curr_pt[i] <= bounds[i][0]: 
-						hit_bound[2*i] = 1
-					if curr_pt[i] >= bounds[i][1]:
-						hit_bound[2*i+1] = 1
-			
-			count += 1
-
-			if case == 1 or case == 3:
-				sub_count_goal += 1
-				up_switch = not up_switch
-
-
-
-	print "Placing " + str(len(points)) + " gems..."
-	for c in range(len(points)):
-		placeGem(points[c],normals[c])
-
-def checkWholeGem(midpt, bounds, corners, gem_dim, up, right, edges):
-	pts_to_check = []
-	
-	if checkPt(midpt, bounds, corners, edges):
-		pts_to_check.append([midpt[p] + 0.5*gem_dim*up[p] for p in range(3)])			#could add a "sensitivity" variable that affects how far out this checks, could also add option of starting at corner or in the middle of face
-		pts_to_check.append([midpt[p] - 0.5*gem_dim*up[p] for p in range(3)])
-		pts_to_check.append([midpt[p] + 0.5*gem_dim*right[p] for p in range(3)])
-		pts_to_check.append([midpt[p] - 0.5*gem_dim*right[p] for p in range(3)])
-
-		useSpot = True
-		for p in pts_to_check:
-			if useSpot:
-				useSpot = checkPt(p, bounds, corners, edges)
-		return useSpot
-
-	return False				
-
-
-# check if point is within bounds of the face
-# adapted from:
-# http://bbs.dartmouth.edu/~fangq/MATH/download/source/Determining%20if%20a%20point%20lies%20on%20the%20interior%20of%20a%20polygon.htm
-def checkPt(pt, bounds, verts, edges):
-	#quick check that it's within the bounding box
-	for i in range(3):
-		if pt[i] < bounds[i][0] or pt[i] > bounds[i][1]:
-			return False
-
- 	if len(verts)>3:		#should support verts>4?
- 		if makeDiag(verts[0], verts[3], edges):
-   			return (checkTriangle(verts[:3], pt) or checkTriangle(verts[1:], pt))
-   		if makeDiag(verts[1], verts[3], edges):
-   			return (checkTriangle(verts[:3], pt) or checkTriangle([verts[0],verts[2],verts[3]], pt))
-   		if makeDiag(verts[2], verts[3], edges):
-   			return (checkTriangle(verts[:3], pt) or checkTriangle([verts[0],verts[1],verts[3]], pt))
-
-   	return checkTriangle(verts, pt)
-
-def makeDiag(v1, v2, edges):
-	for e in edges:
-		if e == [v1, v2] or e == [v2,v1]:
-			return False
-	return True
-
-def checkTriangle(verts, pt):
-	anglesum = 0
-	costheta = 0
-
-   	eps = 0.000001
-   	for i in range(len(verts)):
-		p1 = [verts[i][j]- pt[j] for j in range(3)]
-		p2 = [verts[(i+1)%len(verts)][j]- pt[j] for j in range(3)]
-		
-		m1 = getMagnitude(p1)
-		m2 = getMagnitude(p2)
-
-		if (m1*m2 <= eps):
-			return True
-
-		p1 = normalize(p1)
-		p2 = normalize(p2)
-
-		if [-1*p for p in p1] == p2:
-			return True
-
-		costheta = sum([p1[i]*p2[i] for i in range(3)])
-		costheta = min(1.0,max(costheta,-1.0))
-
-		anglesum += math.acos(costheta)
-
-	#angle sum approx equal to 2*pi
-	if math.fabs(2*math.pi-anglesum) <= eps:
-		return True
-
-	return False
-
-
-def placeGem(pt, norm):
-	cmds.select('gem')
-	cmds.instance()
-
-	r_angle = getRotAngle(norm)
-	cmds.rotate(r_angle[0],r_angle[1],r_angle[2], r = True)
-	cmds.move(pt[0], pt[1], pt[2])
-
-def throwShade():
-	if not cmds.objExists('gem_shader'):
-		cmds.file("shader.ma", i=True)
-
-	cmds.select("gem*")
-	cmds.hyperShade(a="gem_shader")
 
 def findUpVector(normal_f):
 	#finding vector perpendicular to normal that lies in the plane between the normal and y axis (0,1,0)
@@ -323,3 +322,10 @@ def getAvg(corners):
 		avg[2] += p[2]/len(corners)
 		
 	return avg
+
+def makeDiag(v1, v2, edges):
+	for e in edges:
+		if e == [v1, v2] or e == [v2,v1]:
+			return False
+	return True
+	
