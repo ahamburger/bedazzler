@@ -83,8 +83,8 @@ def findPoints(gem_dim, padding):
 		#vectors for spiraling				
 		up = findUpVector(normal_f)
 		right = normalize(crossProd(normal_f, up))
-		
-		if checkWholeGem(avg, bounds, corners, gem_dim, up, right, edges):
+
+		if checkWholeGem(avg, bounds, corners, gem_dim, up, right, edges, face_i):
 			points.append(avg)
 			normals.append(normal_f)
 
@@ -95,12 +95,12 @@ def findPoints(gem_dim, padding):
 			
 			#check to see if we've hit any bounds
 			for i in range(3):
-				if curr_pt[i] <= bounds[i][0] + .00001: 
+				if curr_pt[i] <= bounds[i][0] + .000001: 
 					hit_bound[2*i] = 1
-				if curr_pt[i] >= bounds[i][1]- .00001:
+				if curr_pt[i] >= bounds[i][1] - .000001:
 					hit_bound[2*i+1] = 1
 
-			while sum(hit_bound)<6:		#while we haven't hit all 6 bounds, keep looking for points
+			while sum(hit_bound)<6 and count<100:		#while we haven't hit all 6 bounds, keep looking for points
 				case = count % 4
 				sub_count = 0
 
@@ -120,7 +120,8 @@ def findPoints(gem_dim, padding):
 						dir_vec = [-1*r for r in right]
 
 					curr_pt =  [temp[p] + (gem_dim+padding)*dir_vec[p] for p in range(3)]
-					if checkWholeGem(curr_pt, bounds, corners, gem_dim, up, right, edges):
+
+					if checkWholeGem(curr_pt, bounds, corners, gem_dim, up, right, edges, face_i):
 						points.append(curr_pt)
 						normals.append(normal_f)
 
@@ -128,9 +129,9 @@ def findPoints(gem_dim, padding):
 			
 					#check to see if we've hit any bounds
 					for i in range(3):
-						if curr_pt[i] <= bounds[i][0]+ .00001: 
+						if curr_pt[i] <= bounds[i][0]+ .000001: 
 							hit_bound[2*i] = 1
-						if curr_pt[i] >= bounds[i][1]- .00001:
+						if curr_pt[i] >= bounds[i][1]- .000001:
 							hit_bound[2*i+1] = 1
 				
 				count += 1
@@ -139,16 +140,13 @@ def findPoints(gem_dim, padding):
 					sub_count_goal += 1
 					up_switch = not up_switch
 
-
-
 	print "Placing " + str(len(points)) + " gems..."
 	for c in range(len(points)):
 		placeGem(points[c],normals[c])
 
-def checkWholeGem(midpt, bounds, corners, gem_dim, up, right, edges):
+def checkWholeGem(midpt, bounds, corners, gem_dim, up, right, edges, face_i):
 	pts_to_check = []
-	
-	if checkPt(midpt, bounds, corners, edges):
+	if checkPt(midpt, bounds, corners, edges, face_i):
 		pts_to_check.append([midpt[p] + 0.5*gem_dim*up[p] for p in range(3)])			#could add a "sensitivity" variable that affects how far out this checks, could also add option of starting at corner or in the middle of face
 		pts_to_check.append([midpt[p] - 0.5*gem_dim*up[p] for p in range(3)])
 		pts_to_check.append([midpt[p] + 0.5*gem_dim*right[p] for p in range(3)])
@@ -157,18 +155,29 @@ def checkWholeGem(midpt, bounds, corners, gem_dim, up, right, edges):
 		useSpot = True
 		for p in pts_to_check:
 			if useSpot:
-				useSpot = checkPt(p, bounds, corners, edges)
-		return useSpot
-
+				useSpot = checkPt(p, bounds, corners, edges, face_i)
+				# if not useSpot and face_i == 182:
+					# print pts_to_check
+					# print p
+					# print "midpt " + str(midpt)
+	 	return useSpot
+	if face_i == 182:
+		print "midpt failed"
 	return False				
 
 
 # check if point is within bounds of the face
 
-def checkPt(pt, bounds, verts, edges):
+def checkPt(pt, bounds, verts, edges, face_i):
 	#quick check that it's within the bounding box
 	for i in range(3):
-		if pt[i] < bounds[i][0] or pt[i] > bounds[i][1]:
+		if pt[i] < bounds[i][0]- .000001 or pt[i] > bounds[i][1]+.000001:
+			if face_i == 182:
+				print "pt: " + str(pt)
+				print i
+				print "lower bound: " + str(bounds[i][0])
+				print "upper bound: " +str(bounds[i][1])
+				print bounds
 			return False
 
  	if len(verts)>3:		#should support verts>4?
