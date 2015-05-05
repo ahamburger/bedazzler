@@ -11,7 +11,7 @@ def run(simplify, size, padding,shade):
 	findPoints(size,padding)
 
 	cmds.delete('gem')	#need to account for running script more than once maybe
-	# cmds.delete('triObj')
+	cmds.delete('triObj')
 
 	# if cmds.objExists('gem*'):
 	cmds.group("gem*", name = "gems")
@@ -156,13 +156,14 @@ def checkWholeGem(midpt, bounds, corners, gem_dim, up, right, edges, face_i):
 		for p in pts_to_check:
 			if useSpot:
 				useSpot = checkPt(p, bounds, corners, edges, face_i)
-				# if not useSpot and face_i == 182:
+				# if not useSpot and face_i == 210:
+				# 	print "nonmidpt fail"
 					# print pts_to_check
 					# print p
 					# print "midpt " + str(midpt)
 	 	return useSpot
-	if face_i == 182:
-		print "midpt failed"
+	# if face_i == 210:
+	# 	print "midpt failed"
 	return False				
 
 
@@ -172,31 +173,31 @@ def checkPt(pt, bounds, verts, edges, face_i):
 	#quick check that it's within the bounding box
 	for i in range(3):
 		if pt[i] < bounds[i][0]- .000001 or pt[i] > bounds[i][1]+.000001:
-			if face_i == 182:
-				print "pt: " + str(pt)
-				print i
-				print "lower bound: " + str(bounds[i][0])
-				print "upper bound: " +str(bounds[i][1])
-				print bounds
+			# if face_i == 210:
+			# 	print "pt: " + str(pt)
+			# 	print i
+			# 	print "lower bound: " + str(bounds[i][0])
+			# 	print "upper bound: " +str(bounds[i][1])
+			# 	print bounds
 			return False
 
  	if len(verts)>3:		#should support verts>4?
  		if makeDiag(verts[0], verts[3], edges):
-   			return (checkTriangle(verts[:3], pt) or checkTriangle(verts[1:], pt))
+   			return (checkTriangle(verts[:3], pt, face_i) or checkTriangle(verts[1:], pt, face_i))
    		if makeDiag(verts[1], verts[3], edges):
-   			return (checkTriangle(verts[:3], pt) or checkTriangle([verts[0],verts[2],verts[3]], pt))
+   			return (checkTriangle(verts[:3], pt, face_i) or checkTriangle([verts[0],verts[2],verts[3]], pt, face_i))
    		if makeDiag(verts[2], verts[3], edges):
-   			return (checkTriangle(verts[:3], pt) or checkTriangle([verts[0],verts[1],verts[3]], pt))
+   			return (checkTriangle(verts[:3], pt, face_i) or checkTriangle([verts[0],verts[1],verts[3]], pt, face_i))
 
-   	return checkTriangle(verts, pt)
+   	return checkTriangle(verts, pt, face_i)
 
 # adapted from:
 # http://bbs.dartmouth.edu/~fangq/MATH/download/source/Determining%20if%20a%20point%20lies%20on%20the%20interior%20of%20a%20polygon.htm
-def checkTriangle(verts, pt):
+def checkTriangle(verts, pt, face_i):
 	anglesum = 0
 	costheta = 0
 
-   	eps = 0.000001
+   	eps = 0.00001
    	for i in range(len(verts)):
 		p1 = [verts[i][j]- pt[j] for j in range(3)]
 		p2 = [verts[(i+1)%len(verts)][j]- pt[j] for j in range(3)]
@@ -221,6 +222,8 @@ def checkTriangle(verts, pt):
 	#angle sum approx equal to 2*pi
 	if math.fabs(2*math.pi-anglesum) <= eps:
 		return True
+	# if face_i == 210:
+	# 	print anglesum
 	return False
 
 
