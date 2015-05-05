@@ -84,7 +84,7 @@ def findPoints(gem_dim, padding):
 		up = findUpVector(normal_f)
 		right = normalize(crossProd(normal_f, up))
 
-		if checkWholeGem(avg, bounds, corners, gem_dim, up, right, edges, face_i):
+		if checkWholeGem(avg, bounds, corners, gem_dim, up, right, edges):
 			points.append(avg)
 			normals.append(normal_f)
 
@@ -100,7 +100,7 @@ def findPoints(gem_dim, padding):
 				if curr_pt[i] >= bounds[i][1] - .000001:
 					hit_bound[2*i+1] = 1
 
-			while sum(hit_bound)<6 and count<100:		#while we haven't hit all 6 bounds, keep looking for points
+			while sum(hit_bound)<6:		#while we haven't hit all 6 bounds, keep looking for points
 				case = count % 4
 				sub_count = 0
 
@@ -121,7 +121,7 @@ def findPoints(gem_dim, padding):
 
 					curr_pt =  [temp[p] + (gem_dim+padding)*dir_vec[p] for p in range(3)]
 
-					if checkWholeGem(curr_pt, bounds, corners, gem_dim, up, right, edges, face_i):
+					if checkWholeGem(curr_pt, bounds, corners, gem_dim, up, right, edges):
 						points.append(curr_pt)
 						normals.append(normal_f)
 
@@ -144,9 +144,9 @@ def findPoints(gem_dim, padding):
 	for c in range(len(points)):
 		placeGem(points[c],normals[c])
 
-def checkWholeGem(midpt, bounds, corners, gem_dim, up, right, edges, face_i):
+def checkWholeGem(midpt, bounds, corners, gem_dim, up, right, edges):
 	pts_to_check = []
-	if checkPt(midpt, bounds, corners, edges, face_i):
+	if checkPt(midpt, bounds, corners, edges):
 		pts_to_check.append([midpt[p] + 0.5*gem_dim*up[p] for p in range(3)])			#could add a "sensitivity" variable that affects how far out this checks, could also add option of starting at corner or in the middle of face
 		pts_to_check.append([midpt[p] - 0.5*gem_dim*up[p] for p in range(3)])
 		pts_to_check.append([midpt[p] + 0.5*gem_dim*right[p] for p in range(3)])
@@ -155,45 +155,33 @@ def checkWholeGem(midpt, bounds, corners, gem_dim, up, right, edges, face_i):
 		useSpot = True
 		for p in pts_to_check:
 			if useSpot:
-				useSpot = checkPt(p, bounds, corners, edges, face_i)
-				# if not useSpot and face_i == 210:
-				# 	print "nonmidpt fail"
-					# print pts_to_check
-					# print p
-					# print "midpt " + str(midpt)
+				useSpot = checkPt(p, bounds, corners, edges)
 	 	return useSpot
-	# if face_i == 210:
-	# 	print "midpt failed"
+
 	return False				
 
 
 # check if point is within bounds of the face
 
-def checkPt(pt, bounds, verts, edges, face_i):
+def checkPt(pt, bounds, verts, edges):
 	#quick check that it's within the bounding box
 	for i in range(3):
 		if pt[i] < bounds[i][0]- .000001 or pt[i] > bounds[i][1]+.000001:
-			# if face_i == 210:
-			# 	print "pt: " + str(pt)
-			# 	print i
-			# 	print "lower bound: " + str(bounds[i][0])
-			# 	print "upper bound: " +str(bounds[i][1])
-			# 	print bounds
 			return False
 
  	if len(verts)>3:		#should support verts>4?
  		if makeDiag(verts[0], verts[3], edges):
-   			return (checkTriangle(verts[:3], pt, face_i) or checkTriangle(verts[1:], pt, face_i))
+   			return (checkTriangle(verts[:3], pt) or checkTriangle(verts[1:], pt))
    		if makeDiag(verts[1], verts[3], edges):
-   			return (checkTriangle(verts[:3], pt, face_i) or checkTriangle([verts[0],verts[2],verts[3]], pt, face_i))
+   			return (checkTriangle(verts[:3], pt) or checkTriangle([verts[0],verts[2],verts[3]], pt))
    		if makeDiag(verts[2], verts[3], edges):
-   			return (checkTriangle(verts[:3], pt, face_i) or checkTriangle([verts[0],verts[1],verts[3]], pt, face_i))
+   			return (checkTriangle(verts[:3], pt) or checkTriangle([verts[0],verts[1],verts[3]], pt))
 
-   	return checkTriangle(verts, pt, face_i)
+   	return checkTriangle(verts, pt)
 
 # adapted from:
 # http://bbs.dartmouth.edu/~fangq/MATH/download/source/Determining%20if%20a%20point%20lies%20on%20the%20interior%20of%20a%20polygon.htm
-def checkTriangle(verts, pt, face_i):
+def checkTriangle(verts, pt):
 	anglesum = 0
 	costheta = 0
 
@@ -222,8 +210,6 @@ def checkTriangle(verts, pt, face_i):
 	#angle sum approx equal to 2*pi
 	if math.fabs(2*math.pi-anglesum) <= eps:
 		return True
-	# if face_i == 210:
-	# 	print anglesum
 	return False
 
 
