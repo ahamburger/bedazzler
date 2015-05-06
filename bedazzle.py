@@ -162,13 +162,7 @@ def checkWholeGem(midpt, bounds, corners, gem_dim, up, right, edges):
 
 
 # check if point is within bounds of the face
-
 def checkPt(pt, bounds, verts, edges):
-	#quick check that it's within the bounding box
-	for i in range(3):
-		if pt[i] < bounds[i][0]- .000001 or pt[i] > bounds[i][1]+.000001:
-			return False
-
  	if len(verts)>3:		#should support verts>4?
  		if makeDiag(verts[0], verts[3], edges):
    			return (checkTriangle(verts[:3], pt) or checkTriangle(verts[1:], pt))
@@ -301,15 +295,17 @@ def getRotAngle(n):
 	ret = []
 
 	n = normalize(n)
-	for val in n:
-		new_val = math.degrees(math.acos(val))
-		ret.append(new_val)
+	#projection onto xz plane-- n - ndot(0,1,0)*(0,1,0)
+	xz_proj = [n[0],0.0,n[2]]
+	if not xz_proj == [0.0,0.0,0.0]:
+		xz_proj = normalize(xz_proj)
 
-	new_ret = [ret[1], 90+ret[0], 0]
-	if n[2]>0:
-		new_ret[1] = 90-ret[0]
+	proj_angle = math.degrees(math.acos(xz_proj[0]))
 
-	return new_ret
+	rangles = [math.degrees(math.acos(n[1])), 90+proj_angle, 0]
+	if n[2] >0:
+		rangles[1] = 90-proj_angle
+	return rangles
 
 def getAvg(corners):
 	avg=[0.0,0.0,0.0]
@@ -326,4 +322,3 @@ def makeDiag(v1, v2, edges):
 		if e == [v1, v2] or e == [v2,v1]:
 			return False
 	return True
-	

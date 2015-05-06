@@ -6,6 +6,8 @@ import maya.cmds as cmds
 
 """
 
+#ADD note about freezing transformations
+
 def windowUI(*args):
 
 	if cmds.window("windowUI", exists=True):
