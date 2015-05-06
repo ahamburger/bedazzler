@@ -2,16 +2,19 @@ import maya.cmds as cmds
 import maya.OpenMaya as OM
 import math
 
-def run(simplify, size, padding,shade):
+def run(simplify, size, padding,shade, smoothe, overlap):
 	if not cmds.objExists(baseObject):
 		cmds.textField("baseObject", e=True, tx="Please select a valid object.")
 		return False
 	makeGem(size)
-	triangulateMesh(simplify)
-	findPoints(size,padding)
+	triangulateMesh(simplify, smoothe)
+
+	# if overlap is 0, want .5. if overlap is 1, want 1
+	overlap = .5*(1.0-overlap)
+	findPoints(size,padding, overlap)
 
 	cmds.delete('gem')	#need to account for running script more than once maybe
-	cmds.delete('triObj')
+	# cmds.delete('triObj')
 
 	# if cmds.objExists('gem*'):
 	cmds.group("gem*", name = "gems")
@@ -42,11 +45,14 @@ def makeGem(size):
 	cmds.select('gem')
 	cmds.xform(s=(size,size,size))
 
-def triangulateMesh(simplify):
+def triangulateMesh(simplify, smoothe):
 	cmds.select(baseObject)
 	cmds.duplicate(baseObject, name = "triObj")
 	cmds.select('triObj')
 
+	if smoothe:
+		cmds.polySmooth('triObj', c=smoothe)
+		# cmds.polyReduce(ver = 1, p = .5)
 	if simplify > 0:
 		cmds.polyReduce(ver = 1, p = simplify)
 
@@ -60,7 +66,7 @@ def triangulateMesh(simplify):
 		if not isCoplanar(verts):
 			cmds.polyTriangulate('triObj.f['+ str(face_i)+']')
 
-def findPoints(gem_dim, padding):
+def findPoints(gem_dim, padding, overlap):
 	points = []
 	normals = []
 	
@@ -84,7 +90,7 @@ def findPoints(gem_dim, padding):
 		up = findUpVector(normal_f)
 		right = normalize(crossProd(normal_f, up))
 
-		if checkWholeGem(avg, bounds, corners, gem_dim, up, right, edges):
+		if checkWholeGem(avg, bounds, corners, gem_dim, up, right, edges, overlap):
 			points.append(avg)
 			normals.append(normal_f)
 
@@ -121,7 +127,7 @@ def findPoints(gem_dim, padding):
 
 					curr_pt =  [temp[p] + (gem_dim+padding)*dir_vec[p] for p in range(3)]
 
-					if checkWholeGem(curr_pt, bounds, corners, gem_dim, up, right, edges):
+					if checkWholeGem(curr_pt, bounds, corners, gem_dim, up, right, edges, overlap):
 						points.append(curr_pt)
 						normals.append(normal_f)
 
@@ -144,13 +150,13 @@ def findPoints(gem_dim, padding):
 	for c in range(len(points)):
 		placeGem(points[c],normals[c])
 
-def checkWholeGem(midpt, bounds, corners, gem_dim, up, right, edges):
+def checkWholeGem(midpt, bounds, corners, gem_dim, up, right, edges, overlap):
 	pts_to_check = []
 	if checkPt(midpt, bounds, corners, edges):
-		pts_to_check.append([midpt[p] + 0.5*gem_dim*up[p] for p in range(3)])			#could add a "sensitivity" variable that affects how far out this checks, could also add option of starting at corner or in the middle of face
-		pts_to_check.append([midpt[p] - 0.5*gem_dim*up[p] for p in range(3)])
-		pts_to_check.append([midpt[p] + 0.5*gem_dim*right[p] for p in range(3)])
-		pts_to_check.append([midpt[p] - 0.5*gem_dim*right[p] for p in range(3)])
+		pts_to_check.append([midpt[p] + overlap*gem_dim*up[p] for p in range(3)])			#could add a "sensitivity" variable that affects how far out this checks, could also add option of starting at corner or in the middle of face
+		pts_to_check.append([midpt[p] - overlap*gem_dim*up[p] for p in range(3)])
+		pts_to_check.append([midpt[p] + overlap*gem_dim*right[p] for p in range(3)])
+		pts_to_check.append([midpt[p] - overlap*gem_dim*right[p] for p in range(3)])
 
 		useSpot = True
 		for p in pts_to_check:
