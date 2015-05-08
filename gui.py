@@ -40,13 +40,13 @@ def windowUI(*args):
 	
 	cmds.rowColumnLayout(w=380)
 	cmds.floatSliderGrp("overlap", l="Overlap Tolerance: ", v=0, min=0.0, max=1.0, f=True,w=370,pre=3)	#make real max bigger
-	
-	#shade
-	cmds.checkBox("shaderCheckBox", l='Apply a simple shader', value=False)
 
 	#smoothe
 	cmds.rowColumnLayout(w=380)
 	cmds.floatSliderGrp("smoothe", l="Smoothe mesh: ", v=0, min=0.0, max=1.0, f=True,w=370,pre=3)
+	
+	#shade
+	cmds.checkBox("shaderCheckBox", l='Apply a simple shader', value=False)
 
 	# reset button
 	cmds.button("resetButton", l="Reset to default values", w=370, al="center", c=windowUI)
@@ -60,8 +60,12 @@ def windowUI(*args):
 	cmds.showWindow("windowUI")
 
 def selectBaseObjectButton(*args):
-	selectedObject = cmds.ls(sl=True, tr=True)
+	selectedObject = cmds.ls(sl=True, fl=True)
 	pickBaseObject(selectedObject)
+	global isObj
+	isObj = False
+	if 'transform' in cmds.ls(sl=True, fl=True, st=True):
+		isObj = True
 
 def bedazzleButton(*args):
 	reduceMesh = cmds.intSliderGrp("meshReduce", query=True, v=True)
@@ -71,6 +75,6 @@ def bedazzleButton(*args):
 	smoothe = cmds.floatSliderGrp("smoothe", query=True, v=True)
 	overlap = cmds.floatSliderGrp("overlap", query=True, v=True)
 
-	success = run(reduceMesh, size, padding, shade, smoothe, overlap)
+	success = run(isObj, reduceMesh, size, padding, shade, smoothe, overlap)
 		
 windowUI()

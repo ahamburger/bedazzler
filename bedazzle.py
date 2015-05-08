@@ -2,19 +2,20 @@ import maya.cmds as cmds
 import maya.OpenMaya as OM
 import math
 
-def run(simplify, size, padding,shade, smoothe, overlap):
+def run(isObj, simplify, size, padding,shade, smoothe, overlap):
 	if not cmds.objExists(baseObject):
 		cmds.textField("baseObject", e=True, tx="Please select a valid object.")
 		return False
 	makeGem(size)
-	triangulateMesh(simplify, smoothe)
+	triangulated = triangulateMesh(isObj,simplify, smoothe)
 
 	# if overlap is 0, want .5. if overlap is 1, want 1
 	overlap = .5*(1.0-overlap)
-	findPoints(size,padding, overlap)
+	findPoints(isObj, size,padding, overlap)
 
 	cmds.delete('gem')	#need to account for running script more than once maybe
-	# cmds.delete('triObj')
+	if isObj:
+	 	cmds.delete('triObj')
 
 	# if cmds.objExists('gem*'):
 	cmds.group("gem*", name = "gems")
@@ -45,43 +46,58 @@ def makeGem(size):
 	cmds.select('gem')
 	cmds.xform(s=(size,size,size))
 
-def triangulateMesh(simplify, smoothe):
-	cmds.select(baseObject)
-	cmds.duplicate(baseObject, name = "triObj")
-	cmds.select('triObj')
+def triangulateMesh(isObj, simplify, smoothe):
+	if isObj: 
+		cmds.select(baseObject)
+		cmds.duplicate(baseObject, name = "triObj")
+		cmds.select('triObj')
 
-	if smoothe:
-		cmds.polySmooth('triObj', c=smoothe)
-		# cmds.polyReduce(ver = 1, p = .5)
-	if simplify > 0:
-		cmds.polyReduce(ver = 1, p = simplify)
+		if smoothe:
+			cmds.polySmooth('triObj', c=smoothe)
+			cmds.polyReduce(ver = 1)
+			cmds.polyReduce(ver = 1)
 
-	num_faces = cmds.polyEvaluate('triObj', f=True)
-	
-	#iterate over faces
-	print "Triangulating faces..."
-	for face_i in range(num_faces):		
-		face = cmds.select('triObj.f['+ str(face_i)+']')		
-		verts = getCorners(face_i)
-		if not isCoplanar(verts):
-			cmds.polyTriangulate('triObj.f['+ str(face_i)+']')
+		if simplify > 0:
+			cmds.polyReduce(ver = 1, p = simplify)
 
-def findPoints(gem_dim, padding, overlap):
+		num_faces = cmds.polyEvaluate('triObj', f=True)
+		
+		print "Triangulating faces..."
+		#iterate over faces
+		face_i = 0
+		while face_i < num_faces:
+			if ((num_faces - face_i) % 5 == 0):
+				print "Triangulate check: Approximately " + str(num_faces - face_i) + " faces remaining...."
+			face = cmds.select('triObj.f['+ str(face_i)+']')		
+			verts = getCorners(isObj,face_i)
+			if not isCoplanar(verts):
+				cmds.polyTriangulate('triObj.f['+ str(face_i)+']')
+				num_faces = cmds.polyEvaluate('triObj', f=True)
+			face_i +=1
+
+
+def findPoints(isObj, gem_dim, padding, overlap):
 	points = []
 	normals = []
 	
-	cmds.select('triObj')
-	num_faces = cmds.polyEvaluate('triObj', f=True)	
+	cmds.select(baseObject)
+	num_faces = 1
+	if isObj:
+		cmds.select('triObj')
+		num_faces = cmds.polyEvaluate('triObj', f=True)	
 	print "Starting to iterate over " + str(num_faces) + " faces..."
 	for face_i in range(num_faces):
 		if ((num_faces - face_i) % 5 == 0):
 			print "Approximately " + str(num_faces - face_i) + " faces remaining...."
-		
-		cmds.select('triObj.f['+ str(face_i)+']')
+		if isObj:
+			cmds.select('triObj.f['+ str(face_i)+']')
+
 		bounds = cmds.polyEvaluate(bc = True)
 		normal = cmds.polyInfo(fn=True)
-		corners = getCorners(face_i)
-		edges = getEdges(face_i)
+		corners = getCorners(isObj,face_i)
+		edges = getEdges(isObj,face_i)
+		cmds.select(baseObject)
+
 
 		avg = getAvg(corners)
 		normal_f = normalize([float(i) for i in normal[0].split(':')[1].split()])
@@ -163,7 +179,6 @@ def checkWholeGem(midpt, bounds, corners, gem_dim, up, right, edges, overlap):
 			if useSpot:
 				useSpot = checkPt(p, bounds, corners, edges)
 	 	return useSpot
-
 	return False				
 
 
@@ -185,7 +200,7 @@ def checkTriangle(verts, pt):
 	anglesum = 0
 	costheta = 0
 
-   	eps = 0.00001
+   	eps = 0.0001
    	for i in range(len(verts)):
 		p1 = [verts[i][j]- pt[j] for j in range(3)]
 		p2 = [verts[(i+1)%len(verts)][j]- pt[j] for j in range(3)]
@@ -228,8 +243,11 @@ def throwShade():
 	cmds.select("gem*")
 	cmds.hyperShade(a="gem_shader")
 
-def getCorners(face_i):
-	face = cmds.select('triObj.f['+ str(face_i)+']')
+def getCorners(isObj, face_i):
+	if isObj:
+		face = cmds.select('triObj.f['+ str(face_i)+']')
+	else:
+		face = cmds.select(baseObject)
 	verts = cmds.polyListComponentConversion(tv = True)
 
 	cmds.select(verts)
@@ -240,9 +258,12 @@ def getCorners(face_i):
 		corners.append(cmds.xform(query=True, translation=True, worldSpace=True))
 	return corners
 
-def getEdges(face_i):
+def getEdges(isObj, face_i):
 	e_verts = []
-	face = cmds.select('triObj.f['+ str(face_i)+']')
+	if isObj:
+		face = cmds.select('triObj.f['+ str(face_i)+']')
+	else:
+		face = cmds.select(baseObject)
 	edges = cmds.polyListComponentConversion(te = True)
 	cmds.select(edges)
 	edges_f= cmds.filterExpand( ex=True, sm=32 )
