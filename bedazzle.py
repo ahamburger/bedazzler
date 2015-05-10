@@ -1,5 +1,4 @@
 import maya.cmds as cmds
-import maya.OpenMaya as OM
 import math
 
 def run(isObj, simplify, size, padding,shade, smoothe, overlap):
@@ -22,7 +21,8 @@ def run(isObj, simplify, size, padding,shade, smoothe, overlap):
 
 	if shade:
 		throwShade()
-	return True
+	
+	cmds.textField("baseObject", e=True, tx="")
 
 #does not work if changing base object to run script again
 def pickBaseObject(selectedObject):
@@ -47,7 +47,7 @@ def makeGem(size):
 	cmds.xform(s=(size,size,size))
 
 def triangulateMesh(isObj, simplify, smoothe):
-	if isObj: 
+	if isObj and not cmds.objExists('triObj'):
 		cmds.select(baseObject)
 		cmds.duplicate(baseObject, name = "triObj")
 		cmds.select('triObj')
@@ -238,7 +238,7 @@ def placeGem(pt, norm):
 
 def throwShade():
 	if not cmds.objExists('gem_shader'):
-		cmds.file("shader.ma", i=True)
+		cmds.file("gem_shader.ma", i=True)
 
 	cmds.select("gem*")
 	cmds.hyperShade(a="gem_shader")
@@ -286,7 +286,7 @@ def isCoplanar(verts):
 		v2 = [verts[1][i] - verts[0][i] for i in range(0,3)]
 		v3 = [verts[3][i] - verts[2][i] for i in range(0,3)]
 		v2crossv3 = crossProd(v2,v3)
-		return math.fabs(sum([v1[i] * v2crossv3[i] for i in range(0,3)])) <= .01
+		return math.fabs(sum([v1[i] * v2crossv3[i] for i in range(0,3)])) <= .0001
 	return False
 
 def findUpVector(normal_f):
