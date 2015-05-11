@@ -1,8 +1,21 @@
-# from bedazzle import *
+from bedazzle import *
 import maya.cmds as cmds
 
 """
-Inspiried by Zeno Pelgrims' water drop generator gui
+To use The Bedazzler:
+copy gui.py, bedazzle.py, and the 2 .ma files into your Maya scripts folder 
+(on Mac: ~/Library/Preferences/Autodesk/maya/2015-x64/scripts)
+
+then from Script Editor, run
+
+import gui
+
+To reopen gui, run
+
+reload(gui)
+
+
+GUI inspired by Zeno Pelgrims' water drop generator gui
 http://www.creativecrash.com/maya/script/water-drop-generator-python
 """
 
