@@ -6,8 +6,6 @@ Inspiried by Zeno Pelgrims' water drop generator gui
 http://www.creativecrash.com/maya/script/water-drop-generator-python
 """
 
-#ADD note about freezing transformations
-
 def windowUI(*args):
 
 	if cmds.window("windowUI", exists=True):
@@ -26,8 +24,8 @@ def windowUI(*args):
 	cmds.setParent("..")
 	cmds.separator(h=10, st='in')
 
-	# info button
-	cmds.button("infoButton", l="INFO", w=75, al="center", c=infoButton)
+	# # info button
+	# cmds.button("infoButton", l="INFO", w=75, al="center", c=infoButton)
 
 	# reset button
 	cmds.button("resetButton", l="Reset Values", w=75, al="center", c=windowUI)
@@ -47,14 +45,14 @@ def windowUI(*args):
 		
 	#smoothe
 	cmds.rowColumnLayout(w=380)
-	cmds.floatSliderGrp("smoothe", l="Smoothe mesh: ", v=0, min=0.0, max=1.0, f=True,w=370,pre=3)
+	cmds.floatSliderGrp("smoothe", l="Smooth mesh: ", v=0, min=0.0, max=1.0, f=True,w=370,pre=3)
 
 	# reduce mesh
 	cmds.rowColumnLayout(w=380)
 	cmds.intSliderGrp("meshReduce", l="% to reduce mesh: ", v=0, min=0, max=100, f=True,w=370)
 	
 	#shade
-	cmds.checkBox("shaderCheckBox", l='Apply a simple shader', value=False)
+	cmds.checkBox("shaderCheckBox", l='Include shader', value=False)
 
 	
 	# # text

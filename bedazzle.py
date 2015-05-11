@@ -12,11 +12,10 @@ def run(isObj, simplify, size, padding,shade, smoothe, overlap):
 	overlap = .5*(1.0-overlap)
 	findPoints(isObj, size,padding, overlap)
 
-	cmds.delete('gem')	#need to account for running script more than once maybe
+	cmds.delete('gem')
 	if isObj:
 	 	cmds.delete('triObj')
 
-	# if cmds.objExists('gem*'):
 	cmds.group("gem*", name = "gems")
 
 	if shade:
@@ -169,7 +168,7 @@ def findPoints(isObj, gem_dim, padding, overlap):
 def checkWholeGem(midpt, bounds, corners, gem_dim, up, right, edges, overlap):
 	pts_to_check = []
 	if checkPt(midpt, bounds, corners, edges):
-		pts_to_check.append([midpt[p] + overlap*gem_dim*up[p] for p in range(3)])			#could add a "sensitivity" variable that affects how far out this checks, could also add option of starting at corner or in the middle of face
+		pts_to_check.append([midpt[p] + overlap*gem_dim*up[p] for p in range(3)])
 		pts_to_check.append([midpt[p] - overlap*gem_dim*up[p] for p in range(3)])
 		pts_to_check.append([midpt[p] + overlap*gem_dim*right[p] for p in range(3)])
 		pts_to_check.append([midpt[p] - overlap*gem_dim*right[p] for p in range(3)])
@@ -291,7 +290,6 @@ def isCoplanar(verts):
 
 def findUpVector(normal_f):
 	#finding vector perpendicular to normal that lies in the plane between the normal and y axis (0,1,0)
-	#this can be simplified if it works
 	#unless normal is already the y axis, then use the z axis as "up"
 	neg_n = normalize([-1*n for n in normal_f])
 	if normal_f == [0.0,1.0,0.0] or normal_f == [0.0,-1.0,0.0]:
