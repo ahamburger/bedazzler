@@ -1,4 +1,6 @@
-To use The Bedazzler:
+~*~ The Bedazzler ~*~
+
+To use:
 
 Copy gui.py, bedazzle.py, and the 2 .ma files into your Maya scripts folder 
 (on Mac: ~/Library/Preferences/Autodesk/maya/2015-x64/scripts)
