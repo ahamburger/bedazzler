@@ -1,4 +1,4 @@
-~~The Bedazzler~~
+The Bedazzler
 
 To use:
 
