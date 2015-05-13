@@ -1,4 +1,4 @@
-~*~ The Bedazzler ~*~
+~~The Bedazzler~~
 
 To use:
 
@@ -21,28 +21,28 @@ Script works best on low poly meshes with planar faces. It also looks nicer when
 
 Parameters:
 
-	Size: controls size of gems
+-Size: controls size of gems
 
-	Spacing: controls amount of space between gems
+-Spacing: controls amount of space between gems
 
-	Overlap tolerance: Ranges from 0 to 1. 0 indicates no overlapping of gems. 1 means that gems can overlap by 50%. (Overlap won't occur except at the edges of faces)
+-Overlap tolerance: Ranges from 0 to 1. 0 indicates no overlapping of gems. 1 means that gems can overlap by 50%. (Overlap won't occur except at the edges of faces)
 
-	Smoothing: If 0, will use unsmoothed version of mesh to determine faces. Any values greater than 0 adjust the continuity. Maximum value of 1.0 smooths the faces as much as possible.
+-Smoothing: If 0, will use unsmoothed version of mesh to determine faces. Any values greater than 0 adjust the continuity. Maximum value of 1.0 smooths the faces as much as possible.
 
-	Reducing mesh: Runs poly reduce with this value's percentage before finding the gem locations
+-Reducing mesh: Runs poly reduce with this value's percentage before finding the gem locations
 
-	(If smoothing and reducing, the mesh will be smoothed first, then reduced. Neither of these options will affect the original mesh.)
+(If smoothing and reducing, the mesh will be smoothed first, then reduced. Neither of these options will affect the original mesh.)
 
-	Include shader: Applies a gem shader. If you run the script twice you will have duplicate copies of the shader in your file
+-Include shader: Applies a gem shader. If you run the script twice you will have duplicate copies of the shader in your file
 
 -- 
 
 Improvements to be made:
 
-	Increase maximum of size and spacing parameters
+-Increase maximum of size and spacing parameters
 
-	Allow to apply to multiple selected faces
+-Allow to apply to multiple selected faces
 
-	More organized grouping of gems for when script is run more than once
+-More organized grouping of gems for when script is run more than once
 
-	Option to keep the proxy mesh that gems are placed based on (helpful for figuring out proper parameters and would make running script more than once faster)
+-Option to keep the proxy mesh that gems are placed based on (helpful for figuring out proper parameters and would make running script more than once faster)
