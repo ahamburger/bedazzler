@@ -3,16 +3,18 @@ import math
 
 """
 To use The Bedazzler:
-copy gui.py, bedazzle.py, and the 2 .ma files into your Maya scripts folder 
+
+Copy gui.py, bedazzle.py, and the 2 .ma files into your Maya scripts folder 
 (on Mac: ~/Library/Preferences/Autodesk/maya/2015-x64/scripts)
 
-then from Script Editor, run
+then from Python Script Editor, run
 
 import gui
 
 To reopen gui, run
 
 reload(gui)
+
 """
 
 def run(isObj, simplify, size, padding,shade, smoothe, overlap):

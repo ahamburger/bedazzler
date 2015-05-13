@@ -3,16 +3,39 @@ import maya.cmds as cmds
 
 """
 To use The Bedazzler:
-copy gui.py, bedazzle.py, and the 2 .ma files into your Maya scripts folder 
+
+Copy gui.py, bedazzle.py, and the 2 .ma files into your Maya scripts folder 
 (on Mac: ~/Library/Preferences/Autodesk/maya/2015-x64/scripts)
 
-then from Script Editor, run
+then from Python Script Editor, run
 
 import gui
 
 To reopen gui, run
 
 reload(gui)
+
+--
+
+Base Object can either be an entire mesh or a single face. If you have rotated your mesh, you must freeze transformations before running the script. 
+
+Script works best on low poly meshes with planar faces. It also looks nicer when the faces are regularly sized. Works the best if you aren't planning on smoothing the mesh.
+
+Parameters:
+
+	Size: controls size of gems
+
+	Spacing: controls amount of space between gems
+
+	Overlap tolerance: Ranges from 0 to 1. 0 indicates no overlapping of gems. 1 means that gems can overlap by 50%. (Overlap won't occur except at the edges of faces)
+
+	Smoothing: If 0, will use unsmoothed version of mesh to determine faces. Any values greater than 0 adjust the continuity. Maximum value of 1.0 smooths the faces as much as possible.
+
+	Reducing mesh: Runs poly reduce with this value's percentage before finding the gem locations
+
+	(If smoothing and reducing, the mesh will be smoothed first, then reduced. Neither of these options will affect the original mesh.)
+
+	Include shader: Applies a gem shader. If you run the script twice you will have duplicate copies of the shader in your file
 
 
 GUI inspired by Zeno Pelgrims' water drop generator gui
@@ -45,14 +68,14 @@ def windowUI(*args):
 
 	# size
 	cmds.rowColumnLayout(w=380)
-	cmds.floatSliderGrp("size", l="Gem Size: ", v=.25, min=0.001, max=1.0, f=True,w=370,pre=3)		#make real max bigger
+	cmds.floatSliderGrp("size", l="Gem Size: ", v=.25, min=0.001, max=1.0, f=True,w=370,pre=3)
 
 	# padding
 	cmds.rowColumnLayout(w=380)
-	cmds.floatSliderGrp("padding", l="Spacing: ", v=0, min=0.0, max=1.0, f=True,w=370,pre=3)	#make real max bigger
+	cmds.floatSliderGrp("padding", l="Spacing: ", v=0, min=0.0, max=1.0, f=True,w=370,pre=3)
 	
 	cmds.rowColumnLayout(w=380)
-	cmds.floatSliderGrp("overlap", l="Overlap Tolerance: ", v=0, min=0.0, max=1.0, f=True,w=370,pre=3)	#make real max bigger
+	cmds.floatSliderGrp("overlap", l="Overlap Tolerance: ", v=0, min=0.0, max=1.0, f=True,w=370,pre=3)
 	
 	cmds.separator(h=10, st='in')
 		
